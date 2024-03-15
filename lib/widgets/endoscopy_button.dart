@@ -43,7 +43,7 @@ class _endoscopyButtonState extends State<endoscopyButton> {
           onPressed: null, // GestureDetector가 처리하므로 여기서는 null 처리
           style: ButtonStyle(
             backgroundColor: MaterialStateProperty.all(
-                widget.isSelected ? Colors.orange : Colors.pink,
+                widget.isSelected ? const Color(0xFFFFF455) : const Color(0xFFFFC700),
 
             ),
             shape: MaterialStateProperty.all(
@@ -51,14 +51,14 @@ class _endoscopyButtonState extends State<endoscopyButton> {
                 borderRadius: BorderRadius.circular(20), // 모서리 둥글게 처리 제거
                 side: BorderSide(
                   width: widget.isSelected ? 3.0:2.0,
-                  color: widget.isSelected ? Colors.pink : Colors.orange,
+                  color: widget.isSelected ? const Color(0xFFFFF455) : const Color(0xFFFFF455)
                 ),
               ),
             ),
           ),
           child: Text(
             widget.text,
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: Colors.indigo),
           ),
         ),
       ),

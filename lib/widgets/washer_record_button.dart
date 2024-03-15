@@ -1,5 +1,6 @@
 // washer_button.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class WasherRecordButton extends StatelessWidget {
   final String machineName;
@@ -15,14 +16,18 @@ class WasherRecordButton extends StatelessWidget {
     required this.lastChangeDate,
   }) : super(key: key);
 
+
+
   @override
   Widget build(BuildContext context) {
+    final formattedDate = DateFormat('yy/MM/dd').format(DateTime.parse(lastChangeDate));
+
     return ElevatedButton(
       onPressed: onPressed,
       child: Column(
         children: <Widget>[
-          Text(machineName),
-          Text('$lastChangeDate($scopyCount)'),
+          Text('$machineName($scopyCount)'),
+          Text(formattedDate),
         ],
       ),
       style: ButtonStyle(

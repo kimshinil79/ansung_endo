@@ -12,15 +12,22 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'widgets/machine_button.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 late Map<String, List<dynamic>?> machineScopyTime = {'1호기':[], '2호기':[], '3호기':[], '4호기':[], '5호기':[]};
 late Map<String, List<dynamic>?> todaymachineScopyTime = {'1호기':[], '2호기':[], '3호기':[], '4호기':[], '5호기':[]};
 late Map<String, List<dynamic>?> machineWasherChange =
-  {'1호기':['2024-03-01'], '2호기':['2024-03-01'], '3호기':['2024-03-01'], '4호기':['2024-03-01'], '5호기':['2024-03-01']};
-//late Map<String, List<dynamic>?> machineWasherChange = {'1호기':[], '2호기':[], '3호기':[], '4호기':[], '5호기':[]};
+  {'1호기':['2024-03-01 00:00'], '2호기':['2024-03-01 00:00'], '3호기':['2024-03-01 00:00'], '4호기':['2024-03-01 00:00'], '5호기':['2024-03-01 00:00']};
+late Map<String, int> selectedIndexOfWasherChangeList = {'1호기':0, '2호기':0, '3호기':0, '4호기':0, '5호기':0};
+late Map<String, bool> displayTodayOrNot = {'1호기':true, '2호기':true, '3호기':true, '4호기':true, '5호기':true};
+late String emailAdress = "";
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(MyApp());
 }
 
@@ -54,11 +61,14 @@ class _MyHomePageState extends State<MyHomePage> {
   String selectedMachineName = "";
   String selectedScopyName = "";
   String _selectedTimeOtherDay = "";
+  bool displatyToday = true;
 
   
   Map<String, String> scopyFullName = {'039':'7C692K039', '073':'KG391K073', '098':'5C692K098', '166':'6C692K166',
     '180':'5G391K180', '256':'7G391K257', '257':'7G391k257', '259':'7G391K259', '333':'2G348K333', '379':'1C665K379', '390':'2G348K390',
     '405':'2G348K405', '407':'2G348K407', '515':'1C666K515'};
+
+  Map<String, String> washingMachingFullName = {'1호기':'J1-G0423102', '2호기':'J1-G0423103', '3호기':'J1-G0423104', '4호기':'J1-G0417099', '5호기':'J1-I0210032'};
 
   int timeAsEpoch = 0;
       // '${DateTime.now().toUtc().add(Duration(hours: 9)).toString().substring(0, 19)}';
@@ -72,16 +82,6 @@ class _MyHomePageState extends State<MyHomePage> {
     _loadData();
   }
 
-  String testFunc(int milliSeconds) {
-    DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(milliSeconds);
-
-    // 월과 날짜를 추출합니다.
-    int month = dateTime.month;
-    int day = dateTime.day;
-
-    return month.toString() + '/' + day.toString();
-
-  }
 
   void _onPressedMachine(int index, String machineName) {
     setState(() {
@@ -124,7 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _loadData() async {
 
-    DateTime today = DateTime.now();
+    DateTime today = DateTime.now().toUtc().add(Duration(hours: 9));
     DateTime midnight = DateTime(today.year, today.month, today.day);
     int todayMidNightMillisecondsSinceEpoch = midnight.millisecondsSinceEpoch;
 
@@ -163,14 +163,74 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
     });
+    print ('todayMachineScopyTime:$todaymachineScopyTime');
+
+    selectedIndexOfWasherChangeList.forEach((key, value) {
+      selectedIndexOfWasherChangeList[key] = machineWasherChange[key]!.length-1;
+    });
+  }
+
+  Future<void> saveMachineWasherChangeToFirestore(Map<String, List<dynamic>?> machineWasherChange) async {
+    final firestore = FirebaseFirestore.instance;
+
+    try {
+      // 각 기계별로 반복
+      machineWasherChange.forEach((machineName, changes) async {
+        var machineRef = firestore.collection('machines').doc(machineName);
+        var washerChangesRef = machineRef.collection('washerChanges');
+
+        // 기존 세척액 변경 기록 삭제 (선택적)
+        var snapshots = await washerChangesRef.get();
+        for (var doc in snapshots.docs) {
+          await doc.reference.delete();
+        }
+
+        // 새로운 세척액 변경 기록 추가
+        changes?.forEach((changeDate) async {
+          await washerChangesRef.add({
+            'changeDate': changeDate, // '2024-03-01 00:00' 형태의 날짜 문자열
+          });
+        });
+      });
+
+      print('Machine washer change data successfully saved to Firestore.');
+    } catch (e) {
+      print('Error saving machine washer change data to Firestore: $e');
+    }
   }
 
 
 
+  Future<void> saveDataToFirestore(Map<String, List<dynamic>?> data) async {
+    final firestore = FirebaseFirestore.instance;
+
+    try {
+      WriteBatch batch = firestore.batch();
+
+      data.forEach((machine, records) {
+        var machineRef = firestore.collection('machines').doc(machine);
+
+        records!.asMap().forEach((index, record) {
+          // 각 레코드를 문서로 변환합니다.
+          var docRef = machineRef.collection('records').doc('${record[0]}_${record[1]}');
+          Map<String, dynamic> recordData = {
+            '일련번호': record[0].toString(),
+            '날짜-시간': record[1].toString(),
+          };
+          batch.set(docRef, recordData);
+        });
+      });
+
+      // 모든 변경사항을 한 번에 커밋합니다.
+      await batch.commit();
+      print('Data successfully saved to Firestore.');
+    } catch (e) {
+      print('Error saving data to Firestore: $e');
+    }
+  }
+
+
   void _store(String machineName, String scopy, String appBarDate) async {
-
-    print ('appBarDate:$appBarDate');
-
 
     if (!_isPressedScopy) {
       showDialog(
@@ -212,6 +272,49 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
 
+    if (listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate(machineName, machineWasherChange[machineName]!.last).length>=80){
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('경고'),
+            content: Text('세척 횟수가 80 넘게됩니다. 세척액을 교체해주세요'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('예'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    if ((DateTime.now().difference(DateTime.parse(machineWasherChange[machineName]!.last))).inDays+1 >28) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('경고'),
+            content: Text('세척액 교체일수가 28일 넘었습니다. 세척액을 교체해주세요'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('예'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+
 
     if (appBarDate == 'Today') {
       if (_isPressedMachine && _isPressedScopy) {
@@ -222,8 +325,14 @@ class _MyHomePageState extends State<MyHomePage> {
         });
         machineScopyTime[machineName]!.add([scopy, currentTime]);
 
-        //await prefs.setString('machineScopyTime', machineScopyTime.toString());
-        await prefs.setString('machineScopyTime', jsonEncode(machineScopyTime));
+        final Map<String, List<dynamic>?>sortedmachineScopyTime = {};
+        machineScopyTime.forEach((key, value) {
+          sortedmachineScopyTime[key] = sortDataByDateTime(value!);
+        });
+
+        await prefs.setString('machineScopyTime', jsonEncode(sortedmachineScopyTime));
+        await saveDataToFirestore(sortedmachineScopyTime);
+
         print(machineScopyTime);
       }
     } else {
@@ -238,17 +347,40 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         machineScopyTime[machineName]!.add([scopy, otherDateAndTimeFormattedForm]);
       });
-      print (machineScopyTime);
+      final Map<String, List<dynamic>?>sortedmachineScopyTime = {};
+      machineScopyTime.forEach((key, value) {
+        sortedmachineScopyTime[key] = sortDataByDateTime(value!);
+      });
+
+
+      await prefs.setString('machineScopyTime', jsonEncode(sortedmachineScopyTime));
+      await saveDataToFirestore(sortedmachineScopyTime);
 
     }
 
   }
 
+  void deleteItemFromFirestore(String machineName, List<dynamic> scopyTime) async {
+    final firestore = FirebaseFirestore.instance;
+    String docId = '${scopyTime[0]}_${scopyTime[1]}'; // 고유 ID 생성 방식이 데이터에 맞게 조정되어야 합니다.
+
+    try {
+      await firestore.collection('machines').doc(machineName).collection('records').doc(docId).delete();
+      print('Document successfully deleted.');
+    } catch (e) {
+      print('Error deleting document: $e');
+    }
+  }
 
 
-  void _storeAfterDeleteOrEdit() async {
+  void _storeAfterDeleteOrEdit(machineName) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('machineScopyTime', jsonEncode(machineScopyTime));
+
+
+    setState(() {
+      final String =  machineScopyTime[machineName]![0];
+    });
   }
 
   void deleteItem(String machineName, List endoscopyTime) {
@@ -257,9 +389,11 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> makingExcelFileforEachWashingMachineReport( int machineNum ) async {
+  Future<void> makingExcelFileforEachWashingMachineReport(String machineName, String washerChangeDate ) async {
 
-    final machine = machineNum;
+    final List scopyAndTimeList = listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate(machineName, washerChangeDate);
+    print ('haha:$scopyAndTimeList');
+
     final workbook = xls.Workbook();
 
     final xls.Style globalstyle = workbook.styles.add('style');
@@ -279,10 +413,72 @@ class _MyHomePageState extends State<MyHomePage> {
 
     Directory? appDirectory = await getApplicationDocumentsDirectory();
     final fileName = appDirectory.path + '/내시경 식별 번호 내역 & 소독액 사용 횟수.xlsx';
-    worksheet.getRangeByName('A2').setText('세척기${machine}호');
-    worksheet.getRangeByName('A2').cellStyle.fontSize=10;
+    worksheet.getRangeByName('A2').setText('세척기');
+    worksheet.getRangeByName('A2').cellStyle.fontSize=11;
+    worksheet.getRangeByName('B2:E2').merge();
+    worksheet.getRangeByName('B2').setText('${machineName[0]}호:${washingMachingFullName[machineName]}');
+    worksheet.getRangeByName('B2').cellStyle.fontSize=11;
+    worksheet.getRangeByName('F2').setText('소독횟수');
+    worksheet.getRangeByName('G2').setText('${scopyAndTimeList.length}');
+    worksheet.getRangeByName('H2:I2').merge();
+    worksheet.getRangeByName('H2').setText('소독액 주입일');
+    worksheet.getRangeByName('H2').cellStyle.fontSize=11;
+    worksheet.getRangeByName('J2:K2').merge();
+    worksheet.getRangeByName('J2').setText(washerChangeDate);
+    worksheet.getRangeByName('J2').cellStyle.fontSize=11;
+    worksheet.getRangeByName('L2').setText('담당자');
+    worksheet.getRangeByName('M2:N2').merge();
 
-    final excelData = workbook.saveAsStream();
+    worksheet.getRangeByName('A3').setText('소독액명');
+    worksheet.getRangeByName('A3').cellStyle.fontSize=11;
+    worksheet.getRangeByName('B3:G3').merge();
+    worksheet.getRangeByName('B3').setText('페라플루디액 1제+2제(0.2%과아세트산)');
+    worksheet.getRangeByName('H3:I3').merge();
+    worksheet.getRangeByName('H3').setText('소독액 배출일');
+    worksheet.getRangeByName('H3').cellStyle.fontSize=11;
+    worksheet.getRangeByName('J3:K3').merge();
+    worksheet.getRangeByName('L3').setText('부서장');
+    worksheet.getRangeByName('M3:N3').merge();
+
+    worksheet.getRangeByName('A1:N3').cellStyle = globalstyle;
+
+    //worksheet.getRangeByName('G2').cellStyle.hAlign = xls.HAlignType.right;
+
+    final List ColumnName = ['B', 'C', 'D','E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'];
+    var  row = 4;
+
+    final monthAndDayList = {};
+    scopyAndTimeList.forEach((element) {
+      final String monthAndDay = DateFormat('MM/dd').format(DateTime.parse(element[1]));
+      final String hourAndMin = DateFormat('HH:mm').format(DateTime.parse(element[1]));
+      final int sequenceNum = scopyAndTimeList.indexOf(element)+1;
+      if (!monthAndDayList.containsKey(monthAndDay)) {
+        monthAndDayList[monthAndDay] = [];
+        monthAndDayList[monthAndDay].add([element[0], sequenceNum.toString(), hourAndMin]);
+      } else {
+        monthAndDayList[monthAndDay].add([element[0], sequenceNum.toString(), hourAndMin]);
+      }
+    });
+
+    monthAndDayList.forEach((key, value) {
+      worksheet.getRangeByName('A${row.toString()}').cellStyle = globalstyle;
+      worksheet.getRangeByName('A${row.toString()}').cellStyle.bold = true;
+      worksheet.getRangeByName('A${row.toString()}').cellStyle.fontSize = 12;
+      worksheet.getRangeByName('A${row.toString()}').setText(key);
+      for (int i=0;i<value.length;i++) {
+        final String excelLocationName = ColumnName[i]+row.toString();
+        worksheet.getRangeByName(excelLocationName).cellStyle = globalstyle;
+        worksheet.getRangeByName(excelLocationName).cellStyle.fontSize = 9;
+        worksheet.getRangeByName(excelLocationName).setText('${scopyFullName[value[i][0]]} \n ${value[i][1]} / ${value[i][2]}');
+      }
+      row++;
+    });
+
+
+
+
+
+   final excelData = workbook.saveAsStream();
     workbook.dispose();
     //await workbook.saAsBytes(bytes, flush: true);
 
@@ -363,18 +559,59 @@ class _MyHomePageState extends State<MyHomePage> {
     await file.writeAsBytes(excelData, flush: true);
   }
 
+  Future<void> showEmailDialog(BuildContext context) async {
+    TextEditingController emailController = TextEditingController();
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title:Text('메일주소입력'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('보낼 메일 주소를 입력하세요.'),
+                TextField(
+                  controller: emailController,
+                  decoration: InputDecoration(hintText:emailAdress),
+                )
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('취소'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+                onPressed: () {
+                  emailAdress = emailController.text;
+                  _sendEmailForDailyReport(emailAdress);
+                  Navigator.of(context).pop();
+                },
+                child: Text('보내기')
+            )
+          ],
+        );
+      }
+    );
+  }
 
 
-  Future<void> _sendEmail() async {
+
+  Future<void> _sendEmailForDailyReport(String emailAddress) async {
     final jsonData = json.encode(machineScopyTime);
     Directory? appDirectory = await getApplicationDocumentsDirectory();
     makingExcelFileforDailyWashingMachineReport();
     final String formattedToday = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     final email = Email(
-      body: jsonData,
+      body: '오늘 하루도 수고했어요.  늘 감사합니다^^',
       subject: '데일리내시경세척리포트($formattedToday)',
-      recipients: ['alienpro@naver.com', '19030112@bizmeka.com'],
+      recipients: [emailAddress, '19030112@bizmeka.com'],
       attachmentPaths: ['${appDirectory.path}/'+ '세척기사용순서('+ '$formattedToday' +').xlsx'],
     );
 
@@ -397,20 +634,43 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _selectDateForChangingWasher(BuildContext context, String machineName, StateSetter setState) async {
-    final DateTime? picked = await showDatePicker(
-        context: context,
-        initialDate: DateTime.now(),
-        firstDate: DateTime(2000),
-        lastDate: DateTime(2025),
-        //locale: const Locale('ko', 'KR'),
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2025),
     );
-    if (picked != null && !machineWasherChange[machineName]!.contains(DateFormat('yyyy-MM-dd').format(picked))) {
-      setState(() {
-        machineWasherChange[machineName]!.add(DateFormat('yyyy-MM-dd').format(picked));
-      });
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('machineWasherChange', jsonEncode(machineWasherChange));
-      print ('machineWasherChange:$machineWasherChange');
+
+    if (pickedDate != null) {
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+      );
+
+      if (pickedTime != null) {
+        // 날짜와 시간 결합
+        final DateTime finalDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+
+        // 최종 문자열 포맷
+        final String formattedDateTime = DateFormat('yyyy-MM-dd HH:mm').format(
+            finalDateTime);
+
+        if (!machineWasherChange[machineName]!.contains(formattedDateTime)) {
+          setState(() {
+            machineWasherChange[machineName]!.add(formattedDateTime);
+          });
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+              'machineWasherChange', jsonEncode(machineWasherChange));
+          await saveMachineWasherChangeToFirestore(machineWasherChange);
+        }
+      }
     }
   }
 
@@ -431,31 +691,55 @@ class _MyHomePageState extends State<MyHomePage> {
                   itemCount: machineWasherChange[machineName]?.length ?? 0, // 항목의 개수 지정
                   itemBuilder: (context, index) {
                     return ListTile(
-                      title: Text(
-                        DateFormat('yy/MM/dd').format(DateFormat('yyyy-MM-dd').parse(machineWasherChange[machineName]![index]))+'\n(80)'
+                      leading: Radio<int>(
+                        value: index,
+                        groupValue: selectedIndexOfWasherChangeList[machineName],
+                        onChanged: (int? value) {
+                          print ('value:$value');
+                          setState(() {
+                            selectedIndexOfWasherChangeList[machineName] = value!;
+                            displayTodayOrNot[machineName] = false;
+                          });
+                        },
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      title: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.max, // Column의 크기를 내용에 맞게 조절
                         children: [
-                          IconButton(
-                            onPressed: () => _updateMachineWasherChangeDate(context, machineName, index, setState),
-                            icon: Icon(Icons.edit),
+                          Text(
+                              DateFormat('yy/MM/dd').format(DateFormat('yyyy-MM-dd').parse(machineWasherChange[machineName]![index]))+'(${listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate(machineName, machineWasherChange[machineName]![index]).length})',
+                              style: TextStyle(
+                                fontSize: 18, // 글씨 크기를 조금 크게 설정
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,// 글씨를 굵게 설정
+                            ),
+
                           ),
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _deleteMachineWasherChangeDate(machineName, index, setState);
-                              });
-                            },
-                            icon: Icon(Icons.delete),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () => _updateMachineWasherChangeDate(context, machineName, index, setState),
+                                icon: Icon(Icons.edit, size: 20),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _deleteMachineWasherChangeDate(machineName, index, setState);
+                                  });
+                                },
+                                icon: Icon(Icons.delete, size: 20),
+                              ),
+                              IconButton(
+                                onPressed: () => makingExcelFileforEachWashingMachineReport(machineName, machineWasherChange[machineName]![index]) ,
+                                icon: Icon(Icons.mail, size: 20),
+                              ),
+                            ],
                           ),
-                          IconButton(
-                              onPressed: () {},
-                              icon: Icon(Icons.mail),
-                          )
                         ],
                       ),
                     );
+
                   },
                 ),
               ),
@@ -498,6 +782,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
     if (picked != null && !machineWasherChange[machineName]!.contains(DateFormat('yyyy-MM-dd').format(picked))) {
       setState(() {
+        print ('picked:$picked');
         machineWasherChange[machineName]![index]= DateFormat('yyyy-MM-dd').format(picked);
       });
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -505,6 +790,30 @@ class _MyHomePageState extends State<MyHomePage> {
       print ('machineWasherChange:$machineWasherChange');
     }
   }
+
+  Future<void> _deleteMachineWasherChangeDate(String machineName, String changeDate) async {
+    final firestore = FirebaseFirestore.instance;
+
+    try {
+      // 세척액 변경 날짜에 해당하는 문서 찾기
+      var querySnapshot = await firestore
+          .collection('machines')
+          .doc(machineName)
+          .collection('washerChanges')
+          .where('changeDate', isEqualTo: changeDate)
+          .get();
+
+      // 해당 문서 삭제
+      for (var doc in querySnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      print('Machine washer change date successfully deleted from Firestore.');
+    } catch (e) {
+      print('Error deleting machine washer change date from Firestore: $e');
+    }
+  }
+
 
   Future<void> _deleteMachineWasherChangeDate(String machineName, int index, StateSetter setState) async {
     setState(() {
@@ -531,6 +840,54 @@ class _MyHomePageState extends State<MyHomePage> {
         selectedDate = picked; // 선택된 날짜로 상태 업데이트
       });
     }
+  }
+
+  List<dynamic> sortDataByDateTime(List<dynamic> data) {
+    data.sort((a, b) {
+      DateTime dateTimeA = DateFormat('yyyy-MM-dd HH:mm').parse(a[1]);
+      DateTime dateTimeB = DateFormat('yyyy-MM-dd HH:mm').parse(b[1]);
+      return dateTimeA.compareTo(dateTimeB);
+    });
+    return data;
+  }
+
+  bool compareDatesAndAddIfLater(String dateStr, String dateTimeStr) {
+    List<String> result = [];
+
+    // 문자열을 DateTime 객체로 변환
+    DateTime date = DateTime.parse(dateStr);
+    DateTime dateTime = DateTime.parse(dateTimeStr);
+
+    // 두 DateTime 객체를 비교
+    if (dateTime.isAfter(date)) {
+      return true;
+    }
+
+    return false;
+
+
+  }
+
+  List listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate(
+      String machineName, String washerChangeDate) {
+    List tempList = [];
+    final indexOfWasherDate = machineWasherChange[machineName]!.indexOf(washerChangeDate);
+    final indexOfNextWasherDate = indexOfWasherDate+1;
+    if (machineScopyTime[machineName] != null) {
+      for (List element in machineScopyTime[machineName]!) {
+        if (indexOfWasherDate+1 == machineWasherChange[machineName]!.length) {
+          if (compareDatesAndAddIfLater(washerChangeDate, element[1])) {
+            tempList.add(element);
+          }
+        } else {
+          if (compareDatesAndAddIfLater(washerChangeDate, element[1]) && !compareDatesAndAddIfLater(machineWasherChange[machineName]![indexOfNextWasherDate], element[1])) {
+            tempList.add(element);
+          }
+        }
+      }
+
+    }
+    return tempList;
   }
 
 
@@ -578,7 +935,12 @@ class _MyHomePageState extends State<MyHomePage> {
       ],
       home: Scaffold(
         appBar: AppBar(
-          title: Text('안성성모 내시경센터'),
+          title: Text(
+              '안성성모 내시경센터',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+          ),
           actions: <Widget>[
             TextButton(
               onPressed: () => _selectDate(context),
@@ -596,7 +958,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             IconButton(
               icon: Icon(Icons.mail), // 우편 모양의 아이콘
-              onPressed: () {}, // _sendEmail 함수 또는 해당 기능을 호출
+              onPressed: () => showEmailDialog(context), // _sendEmail 함수 또는 해당 기능을 호출
             ),
           ],
         ),
@@ -613,11 +975,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     Expanded(child: SizedBox()),
                     Expanded(
-                        child: machineButton(index: 2, machineName: '2호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
+                        child: machineButton(index: 3, machineName: '3호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
                     ),
                     Expanded(child: SizedBox()),
                     Expanded(
-                        child: machineButton(index: 3, machineName: '3호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
+                        child: machineButton(index: 5, machineName: '5호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
                     ),
                 ]),
 
@@ -626,11 +988,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   children: <Widget>[
                     Expanded(child: SizedBox()),
                     Expanded(
-                    child: machineButton(index: 4, machineName: '4호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+                    child: machineButton(index: 2, machineName: '2호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
                     ),
                     Expanded(child: SizedBox()),
                     Expanded(
-                      child: machineButton(index: 5, machineName: '5호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+                      child: machineButton(index: 4, machineName: '4호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
                     ),
                     Expanded(child: SizedBox()),
                   ],
@@ -724,41 +1086,49 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ],
                 ),
-                const Divider(
-                  color: Colors.black,
-                  height: 20.0,
-                ),
+
+                // const Divider(
+                //   color: Colors.black,
+                //   height: 20.0,
+                // ),
 
                 Row(
                   children: <Widget>[
                     Expanded(
-                      flex: 4, // 이 비율로 '저장' 버튼이 화면의 80%를 차지합니다.
                       child: ElevatedButton(
                         onPressed: () => _store(selectedMachineName, selectedScopyName, appBarDate),
-                        child: Text('저장'),
+                        child: Text(
+                            '저장',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                        ),
                         style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.all(const Color(0xFF5F5D9C)),
                           shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                             RoundedRectangleBorder(
                               borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
                             ),
+
                           ),
                         ),
                       ),
                     ),
-                    Expanded(
-                      flex: 1, // 이 비율로 '메일 보내기' 버튼이 화면의 20%를 차지합니다.
-                      child: ElevatedButton(
-                        onPressed: _sendEmail,
-                        child: Text('날짜'),
-                        style: ButtonStyle(
-                          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    // Expanded(
+                    //   flex: 1, // 이 비율로 '메일 보내기' 버튼이 화면의 20%를 차지합니다.
+                    //   child: ElevatedButton(
+                    //     onPressed: _sendEmail,
+                    //     child: Text('날짜'),
+                    //     style: ButtonStyle(
+                    //       shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    //         RoundedRectangleBorder(
+                    //           borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ),
+                    // ),
                   ],
                 ),
                 Row(
@@ -767,9 +1137,20 @@ class _MyHomePageState extends State<MyHomePage> {
                         onPressed: makingExcelFileforDailyWashingMachineReport,
                         child: Text('엑셀파일')
                     ),
+                    // ElevatedButton(
+                    //     onPressed: ()=>makingExcelFileforEachWashingMachineReport(2),
+                    //     child: Text('엑셀파일2')
+                    // ),
                     ElevatedButton(
-                        onPressed: ()=>makingExcelFileforEachWashingMachineReport(2),
-                        child: Text('엑셀파일2'))
+                        onPressed: () {
+                          setState(() {
+                            displayTodayOrNot.forEach((key, value) {
+                              displayTodayOrNot[key] = true;
+                            });
+                          });
+                        },
+                        child: Text('오늘 표시')
+                    )
                   ],
                 ),
                 const Divider(
@@ -783,22 +1164,24 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: [
                         WasherRecordButton(
                           machineName: '1호기',
-                          scopyCount: machineScopyTime['1호기']?.length ?? 0, // Null Safety 처리
+                          //scopyCount: machineScopyTime['1호기']?.length ?? 0, // Null Safety 처리
+                          scopyCount: displayTodayOrNot['1호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('1호기', machineWasherChange['1호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('1호기', machineWasherChange['1호기']![selectedIndexOfWasherChangeList['1호기']!]).length,
                           onPressed: () => _showWasherRecord(context, '1호기'),
                           // 날짜가 없는 경우 기본값 사용
-                          lastChangeDate: machineWasherChange['1호기']?.isNotEmpty == true ? machineWasherChange['1호기']!.last.substring(5) : '03-01',
+                          lastChangeDate: displayTodayOrNot['1호기']!? machineWasherChange['1호기']!.last : machineWasherChange['1호기']![selectedIndexOfWasherChangeList['1호기']!],
 
                         ),
                         endoscopyForEachMachineWidget(
-                          machineScopyTime: todaymachineScopyTime,
+                          scopyTime: displayTodayOrNot['1호기']!? todaymachineScopyTime['1호기']! : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('1호기', machineWasherChange['1호기']![selectedIndexOfWasherChangeList['1호기']!]),
                           machineName: '1호기',
                           onEdit : onEdit,
-                          onDelete: (String machineName, List scopyTime) {
+                          onDelete: (String machineName, List scopyTime) async {
+                            deleteItemFromFirestore(machineName, scopyTime);
                             setState(() {
                               todaymachineScopyTime[machineName]!.remove(scopyTime);
                               machineScopyTime[machineName]!.remove(scopyTime);
                             });
-                            _storeAfterDeleteOrEdit();
+                            _storeAfterDeleteOrEdit(machineName);
                           }
                         ),
                       ],
@@ -807,22 +1190,23 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: [
                         WasherRecordButton(
                           machineName: '2호기',
-                          scopyCount: machineScopyTime['2호기']?.length ?? 0, // Null Safety 처리
+                          scopyCount:displayTodayOrNot['2호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('2호기', machineWasherChange['2호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('2호기', machineWasherChange['2호기']![selectedIndexOfWasherChangeList['2호기']!]).length, // Null Safety 처리
                           onPressed: () => _showWasherRecord(context, '2호기'),
                           // 날짜가 없는 경우 기본값 사용
-                          lastChangeDate: machineWasherChange['2호기']?.isNotEmpty == true ? machineWasherChange['2호기']!.last.substring(5) : '03-01',
+                          lastChangeDate: displayTodayOrNot['2호기']!? machineWasherChange['2호기']!.last : machineWasherChange['2호기']![selectedIndexOfWasherChangeList['2호기']!],
 
                         ),
                         endoscopyForEachMachineWidget(
-                          machineScopyTime: todaymachineScopyTime,
+                          scopyTime: displayTodayOrNot['2호기']!? todaymachineScopyTime['2호기']! :listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('2호기', machineWasherChange['2호기']![selectedIndexOfWasherChangeList['2호기']!]),
                           machineName: '2호기',
                             onEdit : onEdit,
-                            onDelete: (String machineName, List scopyTime) {
+                            onDelete: (String machineName, List scopyTime) async {
+                              deleteItemFromFirestore(machineName, scopyTime);
                               setState(() {
                                 todaymachineScopyTime[machineName]!.remove(scopyTime);
                                 machineScopyTime[machineName]!.remove(scopyTime);
                               });
-                              _storeAfterDeleteOrEdit();
+                              _storeAfterDeleteOrEdit(machineName);
                             }
                         ),
                       ],
@@ -831,22 +1215,23 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: [
                         WasherRecordButton(
                           machineName: '3호기',
-                          scopyCount: machineScopyTime['3호기']?.length ?? 0, // Null Safety 처리
+                          scopyCount: displayTodayOrNot['3호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('3호기', machineWasherChange['3호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('3호기', machineWasherChange['3호기']![selectedIndexOfWasherChangeList['3호기']!]).length, // Null Safety 처리
                           onPressed: () => _showWasherRecord(context, '3호기'),
                           // 날짜가 없는 경우 기본값 사용
-                          lastChangeDate: machineWasherChange['3호기']?.isNotEmpty == true ? machineWasherChange['3호기']!.last.substring(5) : '03-01',
+                          lastChangeDate: displayTodayOrNot['3호기']!? machineWasherChange['3호기']!.last : machineWasherChange['3호기']![selectedIndexOfWasherChangeList['3호기']!],
 
                         ),
                         endoscopyForEachMachineWidget(
-                          machineScopyTime: todaymachineScopyTime,
+                          scopyTime: displayTodayOrNot['3호기']!? todaymachineScopyTime['3호기']! : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('3호기', machineWasherChange['3호기']![selectedIndexOfWasherChangeList['3호기']!]),
                           machineName: '3호기',
                             onEdit : onEdit,
-                            onDelete: (String machineName, List scopyTime) {
+                            onDelete: (String machineName, List scopyTime) async {
+                              deleteItemFromFirestore(machineName, scopyTime);
                               setState(() {
                                 todaymachineScopyTime[machineName]!.remove(scopyTime);
                                 machineScopyTime[machineName]!.remove(scopyTime);
                               });
-                              _storeAfterDeleteOrEdit();
+                              _storeAfterDeleteOrEdit(machineName);
                             }
                         ),
                       ],
@@ -855,22 +1240,23 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: [
                         WasherRecordButton(
                           machineName: '4호기',
-                          scopyCount: machineScopyTime['4호기']?.length ?? 0, // Null Safety 처리
+                          scopyCount: displayTodayOrNot['4호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('4호기', machineWasherChange['4호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('4호기', machineWasherChange['4호기']![selectedIndexOfWasherChangeList['4호기']!]).length ?? 0, // Null Safety 처리
                           onPressed: () => _showWasherRecord(context, '4호기'),
                           // 날짜가 없는 경우 기본값 사용
-                          lastChangeDate: machineWasherChange['4호기']?.isNotEmpty == true ? machineWasherChange['4호기']!.last.substring(5) : '03-01',
+                          lastChangeDate: displayTodayOrNot['4호기']!? machineWasherChange['4호기']!.last :  machineWasherChange['4호기']![selectedIndexOfWasherChangeList['4호기']!] ,
 
                         ),
                         endoscopyForEachMachineWidget(
-                          machineScopyTime: todaymachineScopyTime,
-                          machineName: '4호기',
+                            scopyTime: displayTodayOrNot['4호기']!? todaymachineScopyTime['4호기']! : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('4호기', machineWasherChange['4호기']![selectedIndexOfWasherChangeList['4호기']!]),
+                            machineName: '4호기',
                             onEdit : onEdit,
-                            onDelete: (String machineName, List scopyTime) {
+                            onDelete: (String machineName, List scopyTime) async {
+                              deleteItemFromFirestore(machineName, scopyTime);
                               setState(() {
                                 todaymachineScopyTime[machineName]!.remove(scopyTime);
                                 machineScopyTime[machineName]!.remove(scopyTime);
                               });
-                              _storeAfterDeleteOrEdit();
+                              _storeAfterDeleteOrEdit(machineName);
                             }
                         ),
                       ],
@@ -879,22 +1265,23 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: [
                         WasherRecordButton(
                           machineName: '5호기',
-                          scopyCount: machineScopyTime['5호기']?.length ?? 0, // Null Safety 처리
+                          scopyCount:  displayTodayOrNot['5호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('5호기', machineWasherChange['5호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('5호기', machineWasherChange['5호기']![selectedIndexOfWasherChangeList['5호기']!]).length ?? 0,// Null Safety 처리
                           onPressed: () => _showWasherRecord(context, '5호기'),
                           // 날짜가 없는 경우 기본값 사용
-                          lastChangeDate: machineWasherChange['5호기']?.isNotEmpty == true ? machineWasherChange['5호기']!.last.substring(5) : '03-01',
+                          lastChangeDate: displayTodayOrNot['5호기']!? machineWasherChange['5호기']!.last : machineWasherChange['5호기']![selectedIndexOfWasherChangeList['5호기']!],
 
                         ),
                         endoscopyForEachMachineWidget(
-                          machineScopyTime: todaymachineScopyTime,
-                          machineName: '5호기',
+                            scopyTime: displayTodayOrNot['5호기']!? todaymachineScopyTime['5호기']! : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('5호기', machineWasherChange['5호기']![selectedIndexOfWasherChangeList['5호기']!]),
+                            machineName: '5호기',
                             onEdit : onEdit,
-                            onDelete: (String machineName, List scopyTime) {
+                            onDelete: (String machineName, List scopyTime) async {
+                              deleteItemFromFirestore(machineName, scopyTime);
                               setState(() {
                                 todaymachineScopyTime[machineName]!.remove(scopyTime);
                                 machineScopyTime[machineName]!.remove(scopyTime);
                               });
-                              _storeAfterDeleteOrEdit();
+                              _storeAfterDeleteOrEdit(machineName);
                             }
                         ),
                       ],
@@ -911,7 +1298,8 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 Widget endoscopyForEachMachineWidget({
-  required Map<String, List?> machineScopyTime,
+  //required Map<String, List?> machineScopyTime,
+  required List scopyTime,
   required String machineName,
   required Function onDelete,
   required Function(String, String, List<dynamic>, String) onEdit,
@@ -923,7 +1311,7 @@ Widget endoscopyForEachMachineWidget({
 
 
   return Column(
-    children: machineScopyTime[machineName]!.map((e) {
+    children: scopyTime.map((e) {
       return MyButton(
         machineName : machineName,
         scopyTimeList: e,
@@ -949,14 +1337,12 @@ class MyButton extends StatelessWidget {
     required this.onEdit,
   });
 
-
-
-
   @override
   Widget build(BuildContext context) {
 
     DateFormat dateFormatHHmmInMyButton = DateFormat('HH:mm');
     final dateAsHHmm =  scopyTimeList[1].substring(11);
+    final dateAsyyDDmm = DateFormat('yy/MM/dd').format(DateTime.parse(scopyTimeList[1]));
 
 
     return GestureDetector(
@@ -1004,11 +1390,30 @@ class MyButton extends StatelessWidget {
             border: Border.all(
               color: Colors.blue,
             ),
+            color: displayTodayOrNot[machineName]! ? Colors.lightBlueAccent : Colors.grey,
+            borderRadius: BorderRadius.circular(10.0),
           ),
         child : Column(
-          children: [
-            Text(scopyTimeList[0]),
+          children: displayTodayOrNot[machineName]! ? [
+            Text(
+                scopyTimeList[0],
+                style: TextStyle(
+                  color: Colors.pink,
+                  fontWeight: FontWeight.bold,
+                ),
+
+            ),
             Text((dateAsHHmm))
+          ] : [
+            Text(
+                scopyTimeList[0],
+                style: TextStyle(
+                  color: Colors.pink,
+                  fontWeight: FontWeight.bold,
+                ),
+            ),
+            Text(dateAsyyDDmm),
+            Text(dateAsHHmm)
           ],
         )
       ),

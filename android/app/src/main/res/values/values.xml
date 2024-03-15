@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AnsungEndoscopy</string>
+    <!-- ... -->
+
+    <!-- Firebase 설정 -->
+    <string name="google_api_key" translatable="false">AIzaSyBwtzdcFnt6o1IuAQuDrHaev8Z92W2fsTI</string>
+    <string name="firebase_database_url" translatable="false">ansungendoscopy.appspot.com</string>
+    <string name="gcm_defaultSenderId" translatable="false">1057148674081</string>
+    <string name="google_app_id" translatable="false">1:1057148674081:android:074632736d4cac14adc360</string>
+    <string name="project_id" translatable="false">ansungendoscopy</string>
+</resources>

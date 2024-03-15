@@ -53,15 +53,15 @@ class _machineButtonState extends State<machineButton> {
           ),
           style: ButtonStyle(
             backgroundColor: MaterialStateProperty.all(
-                widget.isPressedMachine && widget.selectedIndexMachine == widget.index ? Colors.indigo : Colors.lightBlueAccent,
+                widget.isPressedMachine && widget.selectedIndexMachine == widget.index ? Color(0xFF4CCD99) : const Color(0xFF007F73),
             ),
             shape: MaterialStateProperty.all(
               RoundedRectangleBorder(
                 side: BorderSide(
                   width: widget.isPressedMachine && widget.selectedIndexMachine == widget.index ? 3.0 : 2.0,
                   color: widget.isPressedMachine && widget.selectedIndexMachine == widget.index
-                      ? Colors.lightBlueAccent
-                      : Colors.indigo,
+                      ? const Color(0xFF007F73)
+                      : const Color(0xFF4CCD99)
                 ),
                 borderRadius: BorderRadius.circular(10.0),
               ),
