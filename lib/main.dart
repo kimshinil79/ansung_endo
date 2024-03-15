@@ -791,7 +791,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> _deleteMachineWasherChangeDate(String machineName, String changeDate) async {
+  Future<void> _deleteMachineWasherChangeDateFromFirebase(String machineName, String changeDate) async {
     final firestore = FirebaseFirestore.instance;
 
     try {
