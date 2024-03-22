@@ -38,13 +38,18 @@ dependencies:
   flutter_email_sender: ^6.0.2
   excel: ^4.0.2
   path_provider: ^2.1.2
-  syncfusion_flutter_xlsio: ^24.2.7
+  syncfusion_flutter_xlsio: ^25.1.35
   shared_preferences: ^2.2.2
   intl: ^0.18.0
   flutter_localizations:
     sdk: flutter
-  cloud_firestore: ^4.15.8
-  firebase_core: ^2.9.0
+  cloud_firestore: ^4.4.4
+  camera: ^0.10.5+9
+  google_mlkit_text_recognition: ^0.11.0
+  google_ml_kit: ^0.16.3
+  http: ^1.2.1
+  image_picker: ^1.0.7
+  firebase_core: ^2.7.0
 
 dev_dependencies:
   flutter_test:

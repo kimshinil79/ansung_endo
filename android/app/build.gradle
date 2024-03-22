@@ -46,7 +46,7 @@ android {
         applicationId "com.example.ansung_endo"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdkVersion flutter.minSdkVersion
+        minSdkVersion 21
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -66,9 +66,17 @@ flutter {
     source '../..'
 }
 
+configurations.all {
+    resolutionStrategy {
+        force 'com.squareup.okhttp:okhttp:2.7.5'
+        force 'com.squareup.okio:okio:1.17.5'
+    }
+}
+
 dependencies {
     implementation platform('com.google.firebase:firebase-bom:32.7.4')
     //implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.android.support:multidex:2.0.1'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'com.google.mlkit:text-recognition-korean:16.0.0'
 }
