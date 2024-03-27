@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 class ExaminationRoom extends StatefulWidget {
   @override
@@ -16,9 +17,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
   final firestore = FirebaseFirestore.instance;
 
-  Map<String, dynamic> patientAndExamInformation = {"환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"",
-    "위검진_외래" : "", "위수면_일반":"", "위조직":0, "위절제술":0, "위응급":false, "위내시경기계":"",
-    "대장검진_외래":"", "대장수면_일반":"", "대장조직":0, "대장절제":0, "대장응급":false, "대장내시경기계":"",
+  Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"", "시간":"",
+    "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"",
+    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"",
   };
 
   final List<String> docs = ['이병수', '권순범', '김신일','한융희'];
@@ -34,8 +35,11 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   bool? CSF = false;
   String? selectedDoctor;
   String appBarDate = "";
+  int totalExamNum = 0;
+  bool? newData = true;
+  bool? editing = false;
 
-
+  DateTime selectedDateInPatientInfoDialog = DateTime.now();
   Map<String, TextEditingController> controllders = {};
   Map<String, String> fullPatientInformation = {};
 
@@ -43,6 +47,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   void initState() {
     super.initState();
     selectedDoctor = patientAndExamInformation['의사'];
+
     appBarDate = "Today";
     patientAndExamInformation.forEach((key, value) {
       controllders[key] = TextEditingController(text: value.toString());
@@ -54,10 +59,8 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
           .arguments as Map<String, dynamic>?;
       print('!!!!');
       if (args != null) {
-        // args에서 성별 값이 있을 경우, fullPatientInformation 맵을 데이트합니다.
-        // 예를 들어, 성별 값의 키가 '성별'이라고 가정합니다.
-        print ('?????${args}');
         setState(() {
+          patientAndExamInformation['id'] = args['id'];
           patientAndExamInformation['성별'] = args['성별']; // 'M' 또는 'F'
           patientAndExamInformation['환자번호'] = args['환자번호'] ?? patientAndExamInformation['환자번호'];
           controllders['환자번호']?.text = patientAndExamInformation['환자번호'];
@@ -67,21 +70,10 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
           controllders['나이']?.text = patientAndExamInformation['나이'];
           patientAndExamInformation['생일'] = args['생일'] ?? patientAndExamInformation['생일'];
           controllders['생일']?.text = patientAndExamInformation['생일'];
-          // patientAndExamInformation['위검진/외래'] = args['위검진/외래'];
-          // patientAndExamInformation['위수면/일반'] = args['위수면/일반'];
-          // patientAndExamInformation['위조직'] = args['위조직'];
-          // patientAndExamInformation['위절제술'] = args['위절제술'];
-          // patientAndExamInformation['위내시경기계'] = GSFmachine[args['위내시경기계']];
-          // patientAndExamInformation['위응급'] = args['위응급'];
-          // patientAndExamInformation['대장검진/외래'] = args['대장검진/외래'];
-          // patientAndExamInformation['대장수면/일반'] = args['대장수면/일반'];
-          // patientAndExamInformation['대장조직'] = args['대장조직'];
-          // patientAndExamInformation['대장절제술'] = args['대장절제술'];
-          // patientAndExamInformation['대장내시경기계'] = CSFmachine[args['대장내시경기계']] ;
-          // patientAndExamInformation['대장응급'] = args['대장응급'];
         });
       }
     });
+    refresh();
   }
 
   @override
@@ -92,21 +84,45 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     super.dispose();
   }
 
-  Future<void> updatePatientAndExamInfo(String patientNumber, String name, Map<String, dynamic> newInfo) async {
-    FirebaseFirestore firestore = FirebaseFirestore.instance;
-    print ('여기는 함수 안');
-    
-    QuerySnapshot querySnapshot = await firestore.collection('patients').where('환자번호', isEqualTo:patientNumber).where('이름', isEqualTo: name).get();
-    print ('query:$querySnapshot');
+  String generateUniqueId() {
+    var uuid = Uuid();
+    return uuid.v4(); // v4는 랜덤 UUID를 생성합니다.
+  }
 
-    if (querySnapshot.docs.isEmpty) {
-      print ('해당하는 환자 정보를 찾을 수 없습니다. ');
-    } else {
-      for (var doc in querySnapshot.docs) {
-        await firestore.collection('patients').doc(doc.id).update(newInfo);
-        print ('문서 업데이트 완료');
+  bool comparePatientInfo(Map<String, dynamic> info1, Map<String, dynamic> info2) {
+    // 먼저, 두 맵의 길이가 동일한지 확인합니다.
+    if (info1.length != info2.length) {
+      return false;
+    }
+
+    // 각 키에 대해 두 맵이 동일한 값을 갖고 있는지 확인합니다.
+    for (String key in info1.keys) {
+      // 두 맵 중 하나라도 해당 키를 포함하지 않거나 값이 다르면 false 반환
+      if (!info2.containsKey(key) || info1[key] != info2[key]) {
+        return false;
       }
     }
+
+    // 모든 검사를 통과했다면, 두 맵은 동일합니다.
+    return true;
+  }
+
+
+
+
+  Future<void> updatePatientAndExamInfo(Map<String, dynamic> newInfo) async {
+
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:newInfo['id']).get();
+    if (querySnapshot.docs.isNotEmpty) {
+      print('찾았다!!');
+      for (var doc in querySnapshot.docs) {
+        await firestore.collection('patients').doc(doc.id).update(newInfo);
+        refresh();
+      }
+    }
+
   }
 
   Widget _buildRadioSelection(String title, String firstElement, String secondElement) {
@@ -219,6 +235,189 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchPatientInfoByDate(DateTime date) async {
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+    List<Map<String, dynamic>> todayPatients = [];
+
+    String DateString = DateFormat('yyyy-MM-dd').format(date);
+
+    try{
+      QuerySnapshot querySnapshot = await firestore.collection('patients')
+          .where('날짜', isEqualTo:DateString)
+          .get();
+
+      for(var doc in querySnapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        todayPatients.add(data);
+      }
+    } catch (e) {
+      print ("데이터를 가져오지 못했습니다. :$e");
+    }
+
+    return todayPatients;
+  }
+
+
+  void showPatientInfoDialog() async {
+
+    List<Map<String, dynamic>> patientInfoList = await fetchPatientInfoByDate(selectedDateInPatientInfoDialog);
+    Future<void> _selectDateInPatientInfoDialog(BuildContext context) async {
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: selectedDateInPatientInfoDialog,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2025),
+      );
+      if (picked != null && picked != selectedDateInPatientInfoDialog) {
+        setState(()  {
+          print ('setState');
+          selectedDateInPatientInfoDialog = picked;
+        });
+        Navigator.of(context).pop(); // 현재 대화상자 닫기
+        showPatientInfoDialog();
+
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+
+        String formattedDate = DateFormat('yyyy-MM-dd').format(selectedDateInPatientInfoDialog);
+        String Today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        return AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("환자 목록"),
+              TextButton(
+                onPressed: () => _selectDateInPatientInfoDialog(context),
+                child: Today == formattedDate ? Text('Today') : Text("$formattedDate"),
+              ),
+            ],
+          ),
+          content: Container(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: patientInfoList.length,
+              itemBuilder: (BuildContext context, int index) {
+                var patient = patientInfoList[index];
+                return ListTile(
+                  title: Text("${patient['이름']}(${patient['환자번호']}) ${patient['성별']}/${patient['나이']}"),
+                  subtitle: Text("${patient['날짜']}  ${patient['시간']}"),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    setState(() {
+                      patientAndExamInformation = Map<String, dynamic>.from(patient);
+                      controllders['환자번호']?.text = patientAndExamInformation['환자번호'] ?? '';
+                      controllders['이름']?.text = patientAndExamInformation['이름'] ?? '';
+                      controllders['성별']?.text = patientAndExamInformation['성별'] ?? '';
+                      controllders['나이']?.text = patientAndExamInformation['나이'] ?? '';
+                      controllders['생일']?.text = patientAndExamInformation['생일'] ?? '';
+                      controllders['의사']?.text = patientAndExamInformation['의사'] ?? '';
+                      controllders['날짜']?.text = patientAndExamInformation['날짜'] ?? '';
+                      controllders['시간']?.text = patientAndExamInformation['시간'] ?? '';
+                      controllders['위검진_외래']?.text = patientAndExamInformation['위검진_외래'] ?? '';
+                      controllders['위수면_일반']?.text = patientAndExamInformation['위수면_일반'] ?? '';
+                      controllders['위조직']?.text = patientAndExamInformation['위조직'] ?? '';
+                      controllders['위절제술']?.text = patientAndExamInformation['위절제술'] ?? '';
+                      controllders['위내시경기계']?.text = patientAndExamInformation['위내시경기계'] ?? '';
+                      controllders['대장검진_외래']?.text = patientAndExamInformation['대장검진_외래'] ?? '';
+                      controllders['대장수면_일반']?.text = patientAndExamInformation['대장수면_일반'] ?? '';
+                      controllders['환자번호']?.text = patientAndExamInformation['환자번호'] ?? '';
+                      controllders['대장조직']?.text = patientAndExamInformation['대장조직'] ?? '';
+                      controllders['대장절제']?.text = patientAndExamInformation['대장절제'] ?? '';
+                      controllders['대장내시경기계']?.text = patientAndExamInformation['대장내시경기계'] ?? '';
+                      if ((patient['위검진_외래']) == "") {
+                        GSF = false;
+                      } else {
+                        GSF = true;
+                      }
+                      if ((patient['대장검진_외래']) == "") {
+                        CSF = false;
+                      } else {
+                        CSF = true;
+                      }
+                    });
+                  },
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () async {
+                      final result = await showDialog(
+                          context: context,
+                          builder: (BuildContext deletcontext) {
+                            return AlertDialog(
+                              title: Text('항목 삭제'),
+                              content: Text("이 항목을 삭제하시겠습니까?"),
+                              actions: <Widget>[
+                                TextButton(
+                                    onPressed: () => Navigator.of(deletcontext).pop(true),
+                                    child: Text('예')
+                                ),
+                                TextButton(
+                                    onPressed: () => Navigator.of(deletcontext).pop(false),
+                                    child: Text('아니오'),
+                                ),
+                              ],
+                            );
+
+                          }
+                      );
+                      if (result == true) {
+                        final id = patientInfoList[index]['id'];
+                        await deleteDocumentByPatientNumber(id);
+                        Navigator.of(context).pop();
+                        showPatientInfoDialog();
+                        refresh();
+                      }
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text("닫기"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> deleteDocumentByPatientNumber(String id) async {
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    try {
+      // 'patients' 컬렉션에서 '환자번호'가 일치하는 문서를 찾습니다.
+      QuerySnapshot querySnapshot = await firestore
+          .collection('patients')
+          .where('id', isEqualTo: id)
+          .get();
+
+      // 찾은 문서들을 삭제합니다.
+      for (QueryDocumentSnapshot doc in querySnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      print('문서 삭제 완료');
+    } catch (e) {
+      print('문서 삭제 중 오류 발생: $e');
+    }
+  }
+
+  void refresh() async {
+    final List patientNum = await  fetchPatientInfoByDate(DateTime.now());
+    setState(() {
+      totalExamNum = patientNum.length;
+    });
+  }
+
 
   Widget _buildForm(Map<String, dynamic> fullPatientInformation) {
 
@@ -265,12 +464,6 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
         SizedBox(height: 10,),
         Row(
           children: [
-            // Expanded(
-            //   child: Text('의사', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
-            // ),
-            Expanded(
-                child: _dropDownInExamRoom('의사', docs),
-            ),
             Expanded(
               child:ElevatedButton(
                 onPressed:() => _selectDate(context),
@@ -290,6 +483,10 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                 ),
 
               )
+            ),
+            SizedBox(width: 10,),
+            Expanded(
+              child: _dropDownInExamRoom('의사', docs),
             )
           ],
         ),
@@ -311,6 +508,28 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                             });
                           },
                         ),
+                        Spacer(),
+                        IconButton(
+                            onPressed: refresh,
+                            icon: Icon(Icons.refresh),
+                            iconSize: 40,
+                        ),
+                        SizedBox(width: 10,),
+                        ElevatedButton(
+                            onPressed: showPatientInfoDialog,
+                            child: Text('$totalExamNum명', style: TextStyle(fontSize: 20, color: Colors.white),),
+                            style: ButtonStyle(
+                              // 배경 색상 설정
+                              backgroundColor: MaterialStateProperty.all(Colors.indigoAccent),
+                              // 테두리 모양 및 색상 설정
+                              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(5.0), // 테두리 둥근 정도 조절
+                                  side: BorderSide(color: Colors.purple), // 테두리 색상 및 두께 조절
+                                ),
+                              ),
+                            ),
+                        )
                       ],
                     ),
                     SizedBox(height: 10,),
@@ -343,16 +562,12 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                             Row(
                               children: [
                                 Expanded(
-                                    child: _dropDownInExamRoom('위조직', numAsString )),
-                                SizedBox(width: 10,),
-                                Expanded(
                                     child:  _dropDownInExamRoom('위절제술', numAsString )),
                                 SizedBox(width: 10,),
                                 Expanded(
                                     child: Row(
                                       children: [
                                         Text('응급', style: TextStyle(fontSize: 18)),
-                                        SizedBox(width: 10),
                                         Checkbox(
                                           tristate:false,
                                           value: patientAndExamInformation['위응급'],
@@ -363,15 +578,46 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                                           },
                                         ),
                                       ],
-                                    ))
+                                    )),
+                                Expanded(
+                                    child: _dropDownInExamRoom('위조직', numAsString )),
+                                SizedBox(width: 10,),
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Text('CLO', style: TextStyle(fontSize: 18)),
+                                      Checkbox(
+                                          tristate: false,
+                                          value: patientAndExamInformation['CLO'],
+                                          onChanged: (value) {
+                                            setState(() {
+                                              patientAndExamInformation['CLO'] = value;
+                                            });
+    }
+                                      )
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
                             SizedBox(width: 10,),
                             Row(
                               children: [
-                                Expanded(
-                                  child: Text('위내시경 모델명', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
-                                ),
+                            Expanded(
+                                child: Row(
+                                  children: [
+                                    Text('PEG', style: TextStyle(fontSize: 18)),
+                                    Checkbox(
+                                      tristate:false,
+                                      value: patientAndExamInformation['PEG'],
+                                      onChanged: (value) {
+                                        setState(() {
+                                          patientAndExamInformation['PEG'] = value;
+                                        });
+                                      },
+                                    ),
+                                ],
+                            )),
                                 Expanded(
                                   child: _dropDownInExamRoom('위내시경기계', GSFmachine.keys.toList()),
                                 )
@@ -436,12 +682,6 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                             Row(
                               children: [
                                 Expanded(
-                                    child: _dropDownInExamRoom('대장조직', numAsString )),
-                                SizedBox(width: 10,),
-                                Expanded(
-                                    child: _dropDownInExamRoom('대장절제', numAsString )),
-                                SizedBox(width: 10,),
-                                Expanded(
                                     child: Row(
                                       children: [
                                         Text('응급', style: TextStyle(fontSize: 18)),
@@ -456,7 +696,13 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                                           },
                                         ),
                                       ],
-                                    ))
+                                    )),
+                                Expanded(
+                                    child: _dropDownInExamRoom('대장조직', numAsString )),
+                                SizedBox(width: 10,),
+                                Expanded(
+                                    child: _dropDownInExamRoom('대장절제', numAsString )),
+                                SizedBox(width: 10,),
                               ],
                             ),
                             SizedBox(width: 10,),
@@ -486,6 +732,8 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
 
   void _navigateToCamera(BuildContext context) async {
+    newData = true;
+    editing = false;
     // Obtain a list of the available cameras on the device.
     final cameras = await availableCameras();
 
@@ -529,15 +777,26 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
               child: _buildForm(patientAndExamInformation),
             ),
             ElevatedButton(
-              child: Text('저장'),
+              child: Text(
+                '저장',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
               onPressed: () async {
-                if (appBarDate == 'Today') {
-                  patientAndExamInformation['날짜'] = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
+                if (appBarDate == 'Today' && newData!) {
+                  patientAndExamInformation['날짜'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                  patientAndExamInformation['시간'] = DateFormat('HH:mm').format(DateTime.now());
                 }
                 final String patientNumber = patientAndExamInformation['환자번호'];
                 final String patientName = patientAndExamInformation['이름'];
+                final String date = patientAndExamInformation['날짜'];
+                final String time = patientAndExamInformation['시간'];
+
                 try {
-                  await updatePatientAndExamInfo(patientNumber,patientName, patientAndExamInformation);
+                  await updatePatientAndExamInfo(patientAndExamInformation);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('환자 정보가 저장되었습니다.'),
@@ -553,7 +812,14 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                 print('full:$patientAndExamInformation');
               },
               style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all(Colors.white24),
                 minimumSize: MaterialStateProperty.all(Size(double.infinity, 40)),
+                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(0), // 테두리 둥근 정도 조절
+                    side: BorderSide(color: Colors.indigoAccent), // 테두리 색상 및 두께 조절
+                  ),
+                ),
               ),
             ),
           ],
@@ -664,7 +930,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
 
   String _recognizedText = "";
   Map<String, TextEditingController> controllers = {};
-  Map<String, String> patientInformation = {'환자번호':"", '이름':"", '성별':"", '나이':"", "생일":"", "날짜":""};
+  Map<String, String> patientInformation = {'id':"", '환자번호':"", '이름':"", '성별':"", '나이':"", "생일":"", "날짜":""};
   final firestore = FirebaseFirestore.instance;
 
   @override
@@ -743,6 +1009,11 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
 
     String imagePath = widget.imagePath;
 
+    String generateUniqueId() {
+      var uuid = Uuid();
+      return uuid.v4(); // v4는 랜덤 UUID를 생성합니다.
+    }
+
     return Scaffold(
         appBar: AppBar(title: Text('Display the Picture')),
         // The image is stored as a file on the device. Use the `Image.file`
@@ -766,7 +1037,8 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
               ),
               ElevatedButton(
                   onPressed: () async {
-                    patientInformation['날짜'] = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
+                    patientInformation['날짜'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                    patientInformation['id'] = generateUniqueId();
 
                       try {
                         await firestore.collection('patients').add(patientInformation);
@@ -794,7 +1066,9 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
     );
   }
   Widget _buildPatientInformationForm() {
-    List<Widget> fields = controllers.keys.map((String key) {
+    List<Widget> fields = controllers.keys
+        .where((String key) => key != 'id' && key != '날짜')
+        .map((String key) {
       return TextField(
         controller: controllers[key],
         decoration: InputDecoration(

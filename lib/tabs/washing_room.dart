@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:ansung_endo/widgets/endoscopy_button.dart';
 import 'package:ansung_endo/widgets/washer_record_button.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_email_sender/flutter_email_sender.dart';
@@ -13,7 +14,6 @@ import 'package:intl/intl.dart';
 import '../widgets/machine_button.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 
@@ -47,9 +47,11 @@ class _WashingRoomState extends State<WashingRoom> {
   bool displatyToday = true;
 
 
-  Map<String, String> scopyFullName = {'039':'7C692K039', '073':'KG391K073', '098':'5C692K098', '153':'5G391K153', '166':'6C692K166',
+  Map<String, String> scopyFullName = {'039':'7C692K039', '073':'KG391K073', '098':'5C692K098',  '153':'5G391K153', '166':'6C692K166',
     '180':'5G391K180', '219':'1C664K219', '256':'7G391K257', '257':'7G391k257', '259':'7G391K259', '333':'2G348K333', '379':'1C665K379', '390':'2G348K390',
     '405':'2G348K405', '407':'2G348K407', '515':'1C666K515', '694':'5G348K694'};
+
+  List<String> scopyShortName= ['039', '073', '098', '153','166','180','219', '256', '257', '259', '333', '379', '390', '405','407', '515', '694'];
 
   Map<String, String> washingMachingFullName = {'1호기':'J1-G0423102', '2호기':'J1-G0423103', '3호기':'J1-G0423104', '4호기':'J1-G0417099', '5호기':'J1-I0210032'};
 
@@ -62,7 +64,8 @@ class _WashingRoomState extends State<WashingRoom> {
   @override
   void initState() {
     //super.initState();
-    _loadData();
+    //_loadData();
+    _loadDataFromFirebase();
   }
 
   void _onPressedMachine(int index, String machineName) {
@@ -99,9 +102,80 @@ class _WashingRoomState extends State<WashingRoom> {
 
   String currentTimeToformattedForm() {
     DateTime now = DateTime.now().toUtc().add(Duration(hours: 9));
-    print ('now:$now');
     String formattedDate = DateFormat('yyyy-MM-dd HH:mm').format(now);
     return formattedDate;
+  }
+
+  Future<void> _loadDataFromFirebase() async {
+    final firestore = FirebaseFirestore.instance;
+
+    try {
+      // 기계 별 내시경 소독 기록 가져오기
+      QuerySnapshot scopyTimeSnapshot = await firestore.collectionGroup('records').get();
+      machineScopyTime = {
+        '1호기': [],
+        '2호기': [],
+        '3호기': [],
+        '4호기': [],
+        '5호기': [],
+      };
+      for (QueryDocumentSnapshot doc in scopyTimeSnapshot.docs) {
+        String machineName = doc.reference.parent.parent!.id;
+        String scopyName = doc.get('일련번호');
+        String dateTime = doc.get('날짜-시간');
+        //String id = doc.get('환자정보');
+        machineScopyTime[machineName]!.add([scopyName, dateTime]);
+      }
+
+      // 기계 별 세척액 변경 기록 가져오기
+      QuerySnapshot washerChangeSnapshot = await firestore.collectionGroup('washerChanges').get();
+      machineWasherChange = {
+        '1호기': [],
+        '2호기': [],
+        '3호기': [],
+        '4호기': [],
+        '5호기': [],
+      };
+      for (QueryDocumentSnapshot doc in washerChangeSnapshot.docs) {
+        String machineName = doc.reference.parent.parent!.id;
+        String changeDate = doc.get('changeDate');
+        machineWasherChange[machineName]!.add(changeDate);
+      }
+
+      // 초기 selectedIndexOfWasherChangeList 설정
+      selectedIndexOfWasherChangeList.forEach((key, value) {
+        selectedIndexOfWasherChangeList[key] = machineWasherChange[key]!.length - 1;
+      });
+
+      // todaymachineScopyTime 초기화
+      _initializeTodaymachineScopyTime();
+    } catch (e) {
+      print('Error loading data from Firestore: $e');
+    }
+  }
+
+  void _initializeTodaymachineScopyTime() {
+    DateTime today = DateTime.now().toUtc().add(Duration(hours: 9));
+    DateTime midnight = DateTime(today.year, today.month, today.day);
+    int todayMidNightMillisecondsSinceEpoch = midnight.millisecondsSinceEpoch;
+
+    todaymachineScopyTime = {
+      '1호기': [],
+      '2호기': [],
+      '3호기': [],
+      '4호기': [],
+      '5호기': [],
+    };
+
+    machineScopyTime.forEach((key, value) {
+      if (value != null) {
+        value.forEach((element) {
+          if (dateToMilliseconds(element[1]) > todayMidNightMillisecondsSinceEpoch) {
+            todaymachineScopyTime[key]!.add(element);
+          }
+        });
+      }
+    });
   }
 
   void _loadData() async {
@@ -125,13 +199,11 @@ class _WashingRoomState extends State<WashingRoom> {
     }
 
     if (jsonStringMachineWasherChange != null) {
-      print (jsonStringMachineWasherChange);
       Map<String, dynamic> jsonMap = json.decode(jsonStringMachineWasherChange);
       setState(() {
         machineWasherChange = jsonMap.map((key, value) =>
             MapEntry(key, List<dynamic>.from(value as List<dynamic>? ?? ['2024-03-01'])));
       });
-      print (machineWasherChange);
     }
 
     todaymachineScopyTime = {'1호기':[], '2호기':[], '3호기':[], '4호기':[], '5호기':[]};
@@ -145,12 +217,11 @@ class _WashingRoomState extends State<WashingRoom> {
         });
       }
     });
-    print ('todayMachineScopyTime:$todaymachineScopyTime');
 
     selectedIndexOfWasherChangeList.forEach((key, value) {
       selectedIndexOfWasherChangeList[key] = machineWasherChange[key]!.length-1;
     });
-  }
+  } //여기까지가 _loadData()
 
   Future<void> saveMachineWasherChangeToFirestore(Map<String, List<dynamic>?> machineWasherChange) async {
     final firestore = FirebaseFirestore.instance;
@@ -198,6 +269,7 @@ class _WashingRoomState extends State<WashingRoom> {
           Map<String, dynamic> recordData = {
             '일련번호': record[0].toString(),
             '날짜-시간': record[1].toString(),
+            '환자정보': patientAndExamInformation['id'],
           };
           batch.set(docRef, recordData);
         });
@@ -315,7 +387,6 @@ class _WashingRoomState extends State<WashingRoom> {
         await prefs.setString('machineScopyTime', jsonEncode(sortedmachineScopyTime));
         await saveDataToFirestore(sortedmachineScopyTime);
 
-        print(machineScopyTime);
       }
     } else {
       final TimeOfDay initialTime = TimeOfDay(hour: 9, minute: 0);
@@ -374,7 +445,6 @@ class _WashingRoomState extends State<WashingRoom> {
   Future<void> makingExcelFileforEachWashingMachineReport(String machineName, String washerChangeDate ) async {
 
     final List scopyAndTimeList = listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate(machineName, washerChangeDate);
-    print ('haha:$scopyAndTimeList');
 
     final workbook = xls.Workbook();
 
@@ -677,7 +747,6 @@ class _WashingRoomState extends State<WashingRoom> {
                           value: index,
                           groupValue: selectedIndexOfWasherChangeList[machineName],
                           onChanged: (int? value) {
-                            print ('value:$value');
                             setState(() {
                               selectedIndexOfWasherChangeList[machineName] = value!;
                               displayTodayOrNot[machineName] = false;
@@ -764,12 +833,10 @@ class _WashingRoomState extends State<WashingRoom> {
     );
     if (picked != null && !machineWasherChange[machineName]!.contains(DateFormat('yyyy-MM-dd').format(picked))) {
       setState(() {
-        print ('picked:$picked');
         machineWasherChange[machineName]![index]= DateFormat('yyyy-MM-dd').format(picked);
       });
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('machineWasherChange', jsonEncode(machineWasherChange));
-      print ('machineWasherChange:$machineWasherChange');
     }
   }
 
@@ -790,7 +857,6 @@ class _WashingRoomState extends State<WashingRoom> {
         await doc.reference.delete();
       }
 
-      print('Machine washer change date successfully deleted from Firestore.');
     } catch (e) {
       print('Error deleting machine washer change date from Firestore: $e');
     }
@@ -872,6 +938,128 @@ class _WashingRoomState extends State<WashingRoom> {
     return tempList;
   }
 
+  List<Widget> buildEndoscopyButtons(List<String> data) {
+    List<Widget> rows = [];
+    List<Widget> buttons = [];
+
+    // 데이터를 순회하며 endoscopyButton 위젯을 생성
+    for (var i = 0; i < data.length; i++) {
+      buttons.add(
+        endoscopyButton(
+          onPressed: () => _onPressedScopy(int.parse(data[i]), data[i]),
+          text: data[i],
+          isSelected: _isPressedScopy && _selectedIndexScopy == int.parse(data[i]),
+        ),
+      );
+
+      // 매 5개의 버튼이나 마지막 버튼에 도달했을 때 Row 위젯에 추가
+      if ((i + 1) % 5 == 0 || i == data.length - 1) {
+        rows.add(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [...buttons],
+          ),
+        );
+        buttons = []; // 버튼 리스트 초기화
+      }
+    }
+
+    return rows;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchPatientInfoByDate(DateTime date) async {
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+    List<Map<String, dynamic>> todayPatients = [];
+
+    String DateString = DateFormat('yyyy-MM-dd').format(date);
+
+    try{
+      QuerySnapshot querySnapshot = await firestore.collection('patients')
+          .where('날짜', isEqualTo:DateString)
+          .get();
+
+      for(var doc in querySnapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        todayPatients.add(data);
+      }
+    } catch (e) {
+      print ("데이터를 가져오지 못했습니다. :$e");
+    }
+
+    return todayPatients;
+  }
+
+  DateTime selectedDateInPatientInfoDialog = DateTime.now();
+  Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"", "시간":"",
+    "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"",
+    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"",
+  };
+  bool patientSelection = false;
+
+  void showPatientInfoDialog() async {
+
+    List<Map<String, dynamic>> patientInfoList = await fetchPatientInfoByDate(DateTime.now());
+    Future<void> _selectDateInPatientInfoDialog(BuildContext context) async {
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: selectedDateInPatientInfoDialog,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2025),
+      );
+      if (picked != null && picked != selectedDateInPatientInfoDialog) {
+        setState(()  {
+          selectedDateInPatientInfoDialog = picked;
+        });
+        Navigator.of(context).pop(); // 현재 대화상자 닫기
+        showPatientInfoDialog();
+
+      }
+    }
+
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+
+          String formattedDate = DateFormat('yyyy-MM-dd').format(selectedDateInPatientInfoDialog);
+          String Today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+          return AlertDialog(
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('환자 목록'),
+                TextButton(
+                  onPressed: () => _selectDateInPatientInfoDialog(context),
+                  child: Today == formattedDate ? Text('Today') : Text("$formattedDate"),
+                ),
+              ],
+            ),
+           content: Container(
+             width: double.maxFinite,
+             child: ListView.builder(
+                  shrinkWrap: true,
+                 itemCount: patientInfoList.length,
+                 itemBuilder: (BuildContext context, int index) {
+                    var patient = patientInfoList[index];
+                    return ListTile(
+                      title: Text("${patient['이름']}(${patient['환자번호']}) ${patient['성별']}/${patient['나이']}"),
+                      subtitle: Text("${patient['날짜']}  ${patient['시간']}"),
+                      onTap:() {
+                        Navigator.of(context).pop();
+                        setState(() {
+                          patientAndExamInformation = Map<String, dynamic>.from(patient);
+                        });
+                      }
+                    );
+                 }
+             ),
+           ),
+          );
+        }
+    );
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
 
@@ -940,91 +1128,11 @@ class _WashingRoomState extends State<WashingRoom> {
           //   color: Colors.black,
           //   height: 20.0,
           // ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: <Widget>[
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(39, '039'),
-                text: '039',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 39,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(73, '073'),
-                text: '073',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 73,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(98, '098'),
-                text: '098',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 98,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(166, '166'),
-                text: '166',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 166,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(180, '180'),
-                text: '180',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 180,
-              ),
-            ],
+
+          Column(
+            children: buildEndoscopyButtons(scopyShortName),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: <Widget>[
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(256, '256'),
-                text: '256',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 256,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(257, '257'),
-                text: '257',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 257,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(259, '259'),
-                text: '259',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 259,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(333, '333'),
-                text: '333',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 333,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(379, '379'),
-                text: '379',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 379,
-              ),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: <Widget>[
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(390, '390'),
-                text: '390',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 390,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(405, '405'),
-                text: '405',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 405,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(407, '407'),
-                text: '407',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 407,
-              ),
-              endoscopyButton(
-                onPressed: () => _onPressedScopy(515, '515'),
-                text: '515',
-                isSelected: _isPressedScopy && _selectedIndexScopy == 515,
-              ),
-            ],
-          ),
+
 
           // const Divider(
           //   color: Colors.black,
@@ -1034,6 +1142,29 @@ class _WashingRoomState extends State<WashingRoom> {
           Row(
             children: <Widget>[
               Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: showPatientInfoDialog,
+                    child: Text(
+                        '환자',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ButtonStyle(
+                      backgroundColor: MaterialStateProperty.all(const Color(0xFF6AD4DD)),
+                      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
+                        ),
+
+                      ),
+                    ),
+                  )
+              ),
+              Expanded(
+                flex: 3,
                 child: ElevatedButton(
                   onPressed: () => _store(selectedMachineName, selectedScopyName, appBarDate),
                   child: Text(
@@ -1324,8 +1455,6 @@ class MyButton extends StatelessWidget {
         );
 
         if(result != null) {
-          print ('${result[0]}/${result[1]}');
-          print (result[1].runtimeType);
           onEdit(result[0], result[1], scopyTimeList, machineName);
         }
       },
@@ -1453,8 +1582,6 @@ class _EditDialogState extends State<EditDialog> {
               _selectedTime.hour,
               _selectedTime.minute,
             );//.add(Duration(hours: 9));
-            print ('newTime:$newTime');
-            print ('EditDialog:${newTime.millisecondsSinceEpoch}');
             Navigator.of(context).pop([newName, DateFormat('yyyy-MM-dd HH:mm').format(newTime)]);
             // showDialog(
             //   context: context,
