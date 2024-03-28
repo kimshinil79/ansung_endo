@@ -18,11 +18,11 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   final firestore = FirebaseFirestore.instance;
 
   Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"", "시간":"",
-    "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"",
-    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"",
+    "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"", "위세척기계":"", "위내시경세척시간":"",
+    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"", "대장세척기계":"", "대장내시경세척시간":"",
   };
 
-  final List<String> docs = ['이병수', '권순범', '김신일','한융희'];
+  final List<String> docs = ['이병수', '권순범', '김신일','한융희', '이기섭'];
   final List<String> numAsString = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 

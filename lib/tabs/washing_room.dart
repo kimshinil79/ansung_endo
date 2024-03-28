@@ -1,4 +1,4 @@
-import 'dart:convert';
+// import 'dart:convert';
 import 'package:ansung_endo/widgets/endoscopy_button.dart';
 import 'package:ansung_endo/widgets/washer_record_button.dart';
 import 'package:flutter/cupertino.dart';
@@ -7,17 +7,17 @@ import 'dart:async';
 import 'package:flutter_email_sender/flutter_email_sender.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xls;
-import 'dart:io';
+// import 'dart:io';
 import 'package:intl/intl.dart';
 import '../widgets/machine_button.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:firebase_core/firebase_core.dart';
+// import 'package:flutter_localizations/flutter_localizations.dart';
+// import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 
-
+List<String> machines = ['1호기', '2호기', '3호기', '4호기', '5호기'];
 late Map<String, List<dynamic>?> machineScopyTimePtName = {'1호기':[], '2호기':[], '3호기':[], '4호기':[], '5호기':[]};
 late Map<String, List<dynamic>?> todaymachineScopyTimePtName = {'1호기':[], '2호기':[], '3호기':[], '4호기':[], '5호기':[]};
 late Map<String, List<dynamic>?> machineWasherChange =
@@ -52,6 +52,9 @@ class _WashingRoomState extends State<WashingRoom> {
     '405':'2G348K405', '407':'2G348K407', '515':'1C666K515', '694':'5G348K694'};
 
   List<String> scopyShortName= ['039', '073', '098', '153','166','180','219', '256', '257', '259', '333', '379', '390', '405','407', '515', '694'];
+  final Map<String, String> GSFmachine = {'073':'KG391K073', '180':'5G391K180', '153':'5G391K153','256':'7G391K256','257':'7G391k257',
+    '259':'7G391K259','407':'2G348K407', '405':'2G348K405','390':'2G348K390', '333':'2G348K333', '694':'5G348K694'};
+  final Map<String, String> CSFmachine = {'039':'7C692K039', '166':'6C692K166', '098':'5C692K098', '219':'1C664K219', '379':'1C665K379', '515':'1C666K515',};
 
   Map<String, String> washingMachingFullName = {'1호기':'J1-G0423102', '2호기':'J1-G0423103', '3호기':'J1-G0423104', '4호기':'J1-G0417099', '5호기':'J1-I0210032'};
 
@@ -112,8 +115,6 @@ class _WashingRoomState extends State<WashingRoom> {
     final firestore = FirebaseFirestore.instance;
 
     try {
-      // 기계 별 내시경 소독 기록 가져오기
-      QuerySnapshot scopyTimePtIDSnapshot = await firestore.collectionGroup('records').get();
       machineScopyTimePtName = {
         '1호기': [],
         '2호기': [],
@@ -121,28 +122,41 @@ class _WashingRoomState extends State<WashingRoom> {
         '4호기': [],
         '5호기': [],
       };
-      for (QueryDocumentSnapshot doc in scopyTimePtIDSnapshot.docs) {
-        String machineName = doc.reference.parent.parent!.id;
-        String scopyName = doc.get('일련번호');
-        String dateTime = doc.get('날짜-시간');
-        try {
-          String id = doc.get('환자정보');
-          String ptName = "";
-          QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:id).get();
-          if (querySnapshot.docs.isNotEmpty) {
-            for (var doc in querySnapshot.docs) {
-              Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-              ptName = data['이름'];
-            }
+      for (var machine in machines) {
+        QuerySnapshot querySanpshotForexamAndMachinforGSF = await firestore
+            .collection('patients').where('위세척기계', isEqualTo: machine).get();
+        for (var doc in querySanpshotForexamAndMachinforGSF.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          if (data['위내시경세척시간'] != "") {
+            String gsfWashingTime = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(data['위내시경세척시간']));
+            machineScopyTimePtName[machine]!.add({
+              '일련번호': data['위내시경기계'],
+              '날짜-시간': gsfWashingTime,
+              '환자이름': data['이름'],
+              '검사ID': data['id']
+            });
           }
-          machineScopyTimePtName[machineName]!.add({'일련번호':scopyName, '날짜-시간':dateTime, '환자이름':ptName});
-        } catch (e) {
-          print ('machineName:$machineName, 날짜-시간:$dateTime');
         }
-
-
-
+        QuerySnapshot querySanpshotForexamAndMachinforCSF = await firestore
+            .collection('patients').where('대장세척기계', isEqualTo: machine).get();
+        for (var doc in querySanpshotForexamAndMachinforCSF.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          if (data['대장내시경세척시간'] != "") {
+            String csfWashingTime = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(data['대장내시경세척시간']));
+            machineScopyTimePtName[machine]!.add({
+              '일련번호': data['대장내시경기계'],
+              '날짜-시간': csfWashingTime,
+              '환자이름': data['이름'],
+              '검사ID': data['id']
+            });
+          }
+        }
       }
+    } catch (e) {
+      print ('환자 정보와 기계 정보 메치에 에러 발생:$e');
+    }
+
+    print('machineScopyTimePtName : $machineScopyTimePtName');
 
       // 기계 별 세척액 변경 기록 가져오기
       QuerySnapshot washerChangeSnapshot = await firestore.collectionGroup('washerChanges').get();
@@ -166,9 +180,7 @@ class _WashingRoomState extends State<WashingRoom> {
 
       // todaymachineScopyTime 초기화
       _initializeTodaymachineScopyTimePtName();
-    } catch (e) {
-      print('Error loading data from Firestore: $e');
-    }
+
     setState(() {
       print('시작');
     });
@@ -215,7 +227,7 @@ class _WashingRoomState extends State<WashingRoom> {
   }
 
 
-  Future<void> saveMachineScopyTimePtIDToFirestore(String machine, Map<String, String> recordInfo) async {
+  Future<void> saveMachineScopyTimePtIDToFirestore(String machine, Map<String, String> recordInfo, Map<String, dynamic> patientAndExamInformation) async {
     // Firestore 인스턴스 생성
     FirebaseFirestore firestore = FirebaseFirestore.instance;
 
@@ -226,6 +238,13 @@ class _WashingRoomState extends State<WashingRoom> {
       // 'machine' 컬렉션 내 'machine' 문서의 'records' 서브컬렉션에
       // 'documentName' 이름으로 문서 생성 후 'recordInfo' Map 데이터 추가
       await firestore.collection('machines').doc(machine).collection('records').doc(documentName).set(recordInfo);
+      String id = patientAndExamInformation['id'];
+      QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:id).get();
+      if (querySnapshot.docs.isNotEmpty) {
+        for (var doc in querySnapshot.docs) {
+          await firestore.collection('patients').doc(doc.id).update(patientAndExamInformation);
+        }
+      }
 
       print('Data saved successfully!');
     } catch (e) {
@@ -324,6 +343,15 @@ class _WashingRoomState extends State<WashingRoom> {
       print ('Today');
       if (_isPressedMachine && _isPressedScopy) {
         final currentTime = timeToformattedFormAsyyyyMMddHHMM(DateTime.now());
+        if (GSFmachine.containsKey(scopy) && patientAndExamInformation['위내시경기계'] == scopy) {
+          patientAndExamInformation['위세척기계'] = machineName;
+          patientAndExamInformation['위내시경세척시간'] = currentTime;
+        }
+        if (CSFmachine.containsKey(scopy) && patientAndExamInformation['대장내시경기계'] == scopy) {
+          patientAndExamInformation['대장세척기계'] = machineName;
+          patientAndExamInformation['대장내시경세척시간'] = currentTime;
+        }
+
         Map<String, String> newInfo = {'날짜-시간':currentTime, '일련번호':scopy, '환자정보':patientAndExamInformation['id']};
         Map<String, String> newInfoWithName = {'날짜-시간':currentTime, '일련번호':scopy, '환자이름':patientAndExamInformation['이름']};
         setState(() {
@@ -335,8 +363,7 @@ class _WashingRoomState extends State<WashingRoom> {
         machineScopyTimePtName.forEach((key, value) {
           sortedmachineScopyTime[key] = sortRecordsByDateTime(value!);
         });
-        print ('newInifo:$newInfo');
-        await saveMachineScopyTimePtIDToFirestore(machineName, newInfo);
+        await saveMachineScopyTimePtIDToFirestore(machineName, newInfo, patientAndExamInformation);
 
       }
     } else {
@@ -358,7 +385,7 @@ class _WashingRoomState extends State<WashingRoom> {
         sortedmachineScopyTime[key] = sortRecordsByDateTime(value!);
       });
       //await prefs.setString('machineScopyTime', jsonEncode(sortedmachineScopyTime));
-      await saveMachineScopyTimePtIDToFirestore(machineName, newInfo);
+      await saveMachineScopyTimePtIDToFirestore(machineName, newInfo, patientAndExamInformation);
     }
     setState(() {
       selectedPatientName = '환자';
@@ -367,7 +394,7 @@ class _WashingRoomState extends State<WashingRoom> {
 
   }
 
-  void deleteItemFromFirestore(String machineName, Map<String, String> scopyTimePtName) async {
+  void deleteItemFromFirestore(String machineName, Map<String, dynamic> scopyTimePtName) async {
     final firestore = FirebaseFirestore.instance;
     String docId = '${scopyTimePtName['일련번호']}_${scopyTimePtName['날짜-시간']}'; // 고유 ID 생성 방식이 데이터에 맞게 조정되어야 합니다.
 
@@ -380,15 +407,6 @@ class _WashingRoomState extends State<WashingRoom> {
   }
 
 
-  // void _storeAfterDeleteOrEdit(machineName) async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString('machineScopyTime', jsonEncode(machineScopyTime));
-  //
-  //
-  //   setState(() {
-  //     final String =  machineScopyTime[machineName]![0];
-  //   });
-  // }
 
   void deleteItem(String machineName, Map endoscopyTimePtName) {
     setState(() {
@@ -949,8 +967,8 @@ class _WashingRoomState extends State<WashingRoom> {
 
   DateTime selectedDateInPatientInfoDialog = DateTime.now();
   Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"", "시간":"",
-    "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"",
-    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"",
+    "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"", "위세척기계":"", "위내시경세척시간":"",
+    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"", "대장세척기계":"", "대장내시경세척시간":"",
   };
   String selectedPatientName = "환자";
 
@@ -1022,7 +1040,7 @@ class _WashingRoomState extends State<WashingRoom> {
   @override
   Widget build(BuildContext context) {
 
-    void onEdit(String newName, String newDate, String PtName, Map<String, String> oldScopyTimePtMap, String machineName) {
+    void onEdit(String newName, String newDate, String PtName, Map<String, dynamic> oldScopyTimePtMap, String machineName) {
 
       // 기존 항목을 찾아 수정
       List? scopyList = machineScopyTimePtName[machineName];
@@ -1214,9 +1232,10 @@ class _WashingRoomState extends State<WashingRoom> {
                       scopyTimePtNameList: displayTodayOrNot['1호기']!? todaymachineScopyTimePtName['1호기']! : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('1호기', machineWasherChange['1호기']![selectedIndexOfWasherChangeList['1호기']!]),
                       machineName: '1호기',
                       onEdit : onEdit,
-                      onDelete: (String machineName, Map<String, String> scopyTimePtName) async {
+                      onDelete: (String machineName, Map<String, dynamic> scopyTimePtName) async {
                         deleteItemFromFirestore(machineName, scopyTimePtName);
                         setState(() {
+                          print ('scopyTimePtName: $scopyTimePtName');
                           todaymachineScopyTimePtName[machineName]!.remove(scopyTimePtName);
                           machineScopyTimePtName[machineName]!.remove(scopyTimePtName);
                         });
@@ -1239,7 +1258,7 @@ class _WashingRoomState extends State<WashingRoom> {
                       scopyTimePtNameList: displayTodayOrNot['2호기']!? todaymachineScopyTimePtName['2호기']! :listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('2호기', machineWasherChange['2호기']![selectedIndexOfWasherChangeList['2호기']!]),
                       machineName: '2호기',
                       onEdit : onEdit,
-                      onDelete: (String machineName, Map<String, String> scopyTimePtName) async {
+                      onDelete: (String machineName, Map<String, dynamic> scopyTimePtName) async {
                         deleteItemFromFirestore(machineName, scopyTimePtName);
                         setState(() {
                           todaymachineScopyTimePtName[machineName]!.remove(scopyTimePtName);
@@ -1264,7 +1283,7 @@ class _WashingRoomState extends State<WashingRoom> {
                       scopyTimePtNameList: displayTodayOrNot['3호기']!? todaymachineScopyTimePtName['3호기']! : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('3호기', machineWasherChange['3호기']![selectedIndexOfWasherChangeList['3호기']!]),
                       machineName: '3호기',
                       onEdit : onEdit,
-                      onDelete: (String machineName, Map<String,String> scopyTimePtName) async {
+                      onDelete: (String machineName, Map<String,dynamic> scopyTimePtName) async {
                         deleteItemFromFirestore(machineName, scopyTimePtName);
                         setState(() {
                           todaymachineScopyTimePtName[machineName]!.remove(scopyTimePtName);
@@ -1289,7 +1308,7 @@ class _WashingRoomState extends State<WashingRoom> {
                       scopyTimePtNameList: displayTodayOrNot['4호기']!? todaymachineScopyTimePtName['4호기']! : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('4호기', machineWasherChange['4호기']![selectedIndexOfWasherChangeList['4호기']!]),
                       machineName: '4호기',
                       onEdit : onEdit,
-                      onDelete: (String machineName, Map<String, String> scopyTimePtName) async {
+                      onDelete: (String machineName, Map<String, dynamic> scopyTimePtName) async {
                         deleteItemFromFirestore(machineName, scopyTimePtName);
                         setState(() {
                           todaymachineScopyTimePtName[machineName]!.remove(scopyTimePtName);
@@ -1314,7 +1333,7 @@ class _WashingRoomState extends State<WashingRoom> {
                       scopyTimePtNameList: displayTodayOrNot['5호기']!? todaymachineScopyTimePtName['5호기']! : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('5호기', machineWasherChange['5호기']![selectedIndexOfWasherChangeList['5호기']!]),
                       machineName: '5호기',
                       onEdit : onEdit,
-                      onDelete: (String machineName, Map<String, String> scopyTimePtName) async {
+                      onDelete: (String machineName, Map<String, dynamic> scopyTimePtName) async {
                         deleteItemFromFirestore(machineName, scopyTimePtName);
                         setState(() {
                           todaymachineScopyTimePtName[machineName]!.remove(scopyTimePtName);
@@ -1338,7 +1357,7 @@ Widget endoscopyForEachMachineWidget({
   required List scopyTimePtNameList,
   required String machineName,
   required Function onDelete,
-  required Function(String, String, String, Map<String, String>, String) onEdit,
+  required Function(String, String, String, Map<String, dynamic>, String) onEdit,
 }) {
   if (machineScopyTimePtName[machineName]!.isEmpty) {
     return const SizedBox();
@@ -1362,9 +1381,9 @@ Widget endoscopyForEachMachineWidget({
 
 class MyButton extends StatelessWidget {
   final String machineName;
-  final Map<String, String> scopyTimePtName;
+  final Map<String, dynamic> scopyTimePtName;
   final VoidCallback onPressed;
-  final Function(String, String, String, Map<String, String>, String) onEdit;
+  final Function(String, String, String, Map<String, dynamic>, String) onEdit;
   String PtName = "";
 
   MyButton({
