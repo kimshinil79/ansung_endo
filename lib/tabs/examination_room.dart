@@ -20,6 +20,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"", "시간":"",
     "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"", "위세척기계":"", "위내시경세척시간":"",
     "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"", "대장세척기계":"", "대장내시경세척시간":"",
+    "sig기계":"", "sig조직":"","sig절제술":"","sig응급":false,
   };
 
   final List<String> docs = ['이병수', '권순범', '김신일','한융희', '이기섭'];
@@ -33,6 +34,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
   bool? GSF = true;
   bool? CSF = false;
+  bool? sig = false;
   String? selectedDoctor;
   String appBarDate = "";
   int totalExamNum = 0;
@@ -329,15 +331,20 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                       controllders['대장조직']?.text = patientAndExamInformation['대장조직'] ?? '';
                       controllders['대장절제']?.text = patientAndExamInformation['대장절제'] ?? '';
                       controllders['대장내시경기계']?.text = patientAndExamInformation['대장내시경기계'] ?? '';
-                      if ((patient['위검진_외래']) == "") {
+                      if ((patient['위내시경기계']) == "") {
                         GSF = false;
                       } else {
                         GSF = true;
                       }
-                      if ((patient['대장검진_외래']) == "") {
+                      if ((patient['대장내시경기계']) == "") {
                         CSF = false;
                       } else {
                         CSF = true;
+                      }
+                      if ((patient['sig기계']) == "") {
+                        sig = false;
+                      } else {
+                        sig = true;
                       }
                     });
                   },
@@ -421,9 +428,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
   Widget _buildForm(Map<String, dynamic> fullPatientInformation) {
 
-    if (patientAndExamInformation != null ) {
-      print ('haha:$patientAndExamInformation');
-    }
+    // if (patientAndExamInformation != null ) {
+    //   print ('haha:$patientAndExamInformation');
+    // }
 
     final DateFormat DateFormatForAppBarDate = DateFormat('yyyy-MM-dd');
 
@@ -718,6 +725,86 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                             ),
                           ],
                         )
+                      ),
+                    )
+
+                  ],
+                )
+            )
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text('Sigmoidoscopy', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        Checkbox(
+                          tristate:false,
+                          value: sig,
+                          onChanged: (value) {
+                            setState(() {
+                              sig = value;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10,),
+                    Visibility(
+                      visible: sig!,
+                      child: Container(
+                          padding: EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                              border: Border.all(
+                                color:Colors.purple,
+                                width: 2.0,
+                              )
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                      child: Row(
+                                        children: [
+                                          Text('응급', style: TextStyle(fontSize: 18)),
+                                          SizedBox(width: 10),
+                                          Checkbox(
+                                            tristate:false,
+                                            value: patientAndExamInformation['sig응급'],
+                                            onChanged: (value) {
+                                              setState(() {
+                                                patientAndExamInformation['sig응급'] = value;
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      )),
+                                  Expanded(
+                                      child: _dropDownInExamRoom('sig조직', numAsString )),
+                                  SizedBox(width: 10,),
+                                  Expanded(
+                                      child: _dropDownInExamRoom('sig절제', numAsString )),
+                                  SizedBox(width: 10,),
+                                ],
+                              ),
+                              SizedBox(width: 10,),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text('Sig 모델명', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
+                                  ),
+                                  Expanded(
+                                    child: _dropDownInExamRoom('sig기계', [...GSFmachine.keys.toList(), ...CSFmachine.keys.toList()]),
+                                  )
+                                ],
+                              ),
+                            ],
+                          )
                       ),
                     )
 
@@ -1041,7 +1128,8 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                     patientInformation['id'] = generateUniqueId();
 
                       try {
-                        await firestore.collection('patients').add(patientInformation);
+                        String docName = patientInformation['이름']! + "_" + patientInformation['날짜']!;
+                        await firestore.collection('patients').doc(docName).set(patientInformation);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('환자 정보가 저장되었습니다.'),

@@ -3,6 +3,7 @@ import 'package:ansung_endo/widgets/endoscopy_button.dart';
 import 'package:ansung_endo/widgets/washer_record_button.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'dart:async';
 import 'package:flutter_email_sender/flutter_email_sender.dart';
 import 'dart:io';
@@ -20,7 +21,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 List<String> machines = ['1호기', '2호기', '3호기', '4호기', '5호기'];
 late Map<String, List<dynamic>?> machineScopyTimePtName = {'1호기':[], '2호기':[], '3호기':[], '4호기':[], '5호기':[]};
 late Map<String, List<dynamic>?> todaymachineScopyTimePtName = {'1호기':[], '2호기':[], '3호기':[], '4호기':[], '5호기':[]};
-late Map<String, List<dynamic>?> machineWasherChange =
+Map<String, List<String>> machineWasherChange =
 {'1호기':['2000-01-01 00:00'], '2호기':['2000-01-01 00:00'], '3호기':['2000-01-01 00:00'], '4호기':['2000-01-01 00:00'], '5호기':['2000-01-01 00:00']};
 late Map<String, int> selectedIndexOfWasherChangeList = {'1호기':0, '2호기':0, '3호기':0, '4호기':0, '5호기':0};
 late Map<String, bool> displayTodayOrNot = {'1호기':true, '2호기':true, '3호기':true, '4호기':true, '5호기':true};
@@ -156,7 +157,6 @@ class _WashingRoomState extends State<WashingRoom> {
       print ('환자 정보와 기계 정보 메치에 에러 발생:$e');
     }
 
-    print('machineScopyTimePtName : $machineScopyTimePtName');
 
       // 기계 별 세척액 변경 기록 가져오기
       QuerySnapshot washerChangeSnapshot = await firestore.collectionGroup('washerChanges').get();
@@ -173,6 +173,13 @@ class _WashingRoomState extends State<WashingRoom> {
         machineWasherChange[machineName]!.add(changeDate);
       }
 
+      print('machineWasherChange: $machineWasherChange');
+
+      for (var machine in machineWasherChange.keys.toList()) {
+          machineWasherChange[machine] = sortwasherChangeByDateTime(machineWasherChange[machine]!);
+      }
+
+
       // 초기 selectedIndexOfWasherChangeList 설정
       selectedIndexOfWasherChangeList.forEach((key, value) {
         selectedIndexOfWasherChangeList[key] = machineWasherChange[key]!.length - 1;
@@ -184,7 +191,6 @@ class _WashingRoomState extends State<WashingRoom> {
     setState(() {
       print('시작');
     });
-
   }
 
   void _initializeTodaymachineScopyTimePtName() {
@@ -255,25 +261,7 @@ class _WashingRoomState extends State<WashingRoom> {
 
   void _store(String machineName, String scopy, Map<String, dynamic> patientAndExamInformation, String appBarDate) async {
 
-    if (!_isPressedScopy) {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('경고'),
-            content: Text('내시경 번호를 선택해주세요.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text('예'),
-              ),
-            ],
-          );
-        },
-      );
-    }
+
 
     if (!_isPressedMachine) {
       showDialog(
@@ -341,7 +329,7 @@ class _WashingRoomState extends State<WashingRoom> {
 
     if (appBarDate == 'Today') {
       print ('Today');
-      if (_isPressedMachine && _isPressedScopy) {
+      if (_isPressedMachine ) {
         final currentTime = timeToformattedFormAsyyyyMMddHHMM(DateTime.now());
         if (GSFmachine.containsKey(scopy) && patientAndExamInformation['위내시경기계'] == scopy) {
           patientAndExamInformation['위세척기계'] = machineName;
@@ -388,7 +376,7 @@ class _WashingRoomState extends State<WashingRoom> {
       await saveMachineScopyTimePtIDToFirestore(machineName, newInfo, patientAndExamInformation);
     }
     setState(() {
-      selectedPatientName = '환자';
+      selectedPatientNameAndScopyName = '환자';
     });
 
 
@@ -396,10 +384,28 @@ class _WashingRoomState extends State<WashingRoom> {
 
   void deleteItemFromFirestore(String machineName, Map<String, dynamic> scopyTimePtName) async {
     final firestore = FirebaseFirestore.instance;
-    String docId = '${scopyTimePtName['일련번호']}_${scopyTimePtName['날짜-시간']}'; // 고유 ID 생성 방식이 데이터에 맞게 조정되어야 합니다.
+    //String docId = '${scopyTimePtName['일련번호']}_${scopyTimePtName['날짜-시간']}'; // 고유 ID 생성 방식이 데이터에 맞게 조정되어야 합니다.
+    print('scopyTimePtName:$scopyTimePtName');
 
     try {
-      await firestore.collection('machines').doc(machineName).collection('records').doc(docId).delete();
+      String id = scopyTimePtName['검사ID'];
+      QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:id).get();
+      if (querySnapshot.docs.isNotEmpty) {
+        for (var doc in querySnapshot.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          print('찻았다:$data');
+          if (GSFmachine.containsKey(scopyTimePtName['일련번호'])) {
+            data['위세척기계'] = "";
+            data['위내시경세척시간'] = "";
+          }
+          if (CSFmachine.containsKey(scopyTimePtName['일련번호'])) {
+            data['대장세척기계'] = "";
+            data['대장내시경세척시간'] = "";
+          }
+          print('data:$data');
+          await firestore.collection('patients').doc(doc.id).update(data);
+        }
+      }
       print('Document successfully deleted.');
     } catch (e) {
       print('Error deleting document: $e');
@@ -409,6 +415,7 @@ class _WashingRoomState extends State<WashingRoom> {
 
 
   void deleteItem(String machineName, Map endoscopyTimePtName) {
+    print('deleteItem:$deleteItem');
     setState(() {
       machineScopyTimePtName[machineName]!.remove(endoscopyTimePtName);
     });
@@ -875,6 +882,18 @@ class _WashingRoomState extends State<WashingRoom> {
     return records;
   }
 
+  List<String> sortwasherChangeByDateTime(List<String> records) {
+    records.sort((a, b) {
+      // '시간-날짜' 값을 DateTime 으로 파싱합니다.
+      DateTime dateTimeA = DateTime.parse(a);
+      DateTime dateTimeB = DateTime.parse(b);
+
+      // DateTime 객체를 비교하여 정렬합니다.
+      return dateTimeA.compareTo(dateTimeB);
+    });
+    return records;
+  }
+
   bool compareDatesAndAddIfLater(String dateStr, String dateTimeStr) {
     List<String> result = [];
 
@@ -969,8 +988,9 @@ class _WashingRoomState extends State<WashingRoom> {
   Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"", "시간":"",
     "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"", "위세척기계":"", "위내시경세척시간":"",
     "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"", "대장세척기계":"", "대장내시경세척시간":"",
+    "sig기계":"", "sig조직":"","sig절제술":"", "sig응급":false,
   };
-  String selectedPatientName = "환자";
+  String selectedPatientNameAndScopyName = "환자";
 
   void showPatientInfoDialog() async {
 
@@ -1011,23 +1031,61 @@ class _WashingRoomState extends State<WashingRoom> {
             ),
            content: Container(
              width: double.maxFinite,
-             child: ListView.builder(
+             child: ListView.separated(
                   shrinkWrap: true,
                  itemCount: patientInfoList.length,
                  itemBuilder: (BuildContext context, int index) {
                     var patient = patientInfoList[index];
+                    patientAndExamInformation = Map<String, dynamic>.from(patient);
                     return ListTile(
-                      title: Text("${patient['이름']}(${patient['환자번호']}) ${patient['성별']}/${patient['나이']}"),
-                      subtitle: Text("${patient['날짜']}  ${patient['시간']}"),
-                      onTap:() {
-                        Navigator.of(context).pop();
-                        setState(() {
-                          patientAndExamInformation = Map<String, dynamic>.from(patient);
-                          selectedPatientName = patientAndExamInformation['이름'];
-                        });
-                      }
+                      title: Text("${patient['이름']}(${patient['환자번호']}) ${patient['성별']}/${patient['나이']} ${patient['시간']}"),
+                      subtitle: Row(
+                        children: [
+                          patient['위내시경기계'] != ""? Expanded(
+                              child: ElevatedButton(
+                                child: Text('위 ${patient['위내시경기계']}'),
+                                onPressed: () {
+                                  setState(() {
+                                    selectedScopyName = patient['위내시경기계'];
+                                    selectedPatientNameAndScopyName = patient['이름'] + " (위내시경 " + patient['위내시경기계'] + ")";
+                                    patientAndExamInformation = Map<String, dynamic>.from(patient);
+                                    Navigator.of(context).pop();
+                                  });
+                                },
+                              )
+                          ) : SizedBox(),
+                          SizedBox(width: 10,),
+                          patient['대장내시경기계'] != ""? Expanded(
+                              child: ElevatedButton(
+                                child: Text('대장 ${patient['대장내시경기계']}'),
+                                onPressed: () {
+                                  setState(() {
+                                    selectedScopyName = patient['대장내시경기계'];
+                                    selectedPatientNameAndScopyName = patient['이름'] + " (대장내시경 " + patient['대장내시경기계'] + ")";
+                                    patientAndExamInformation = Map<String, dynamic>.from(patient);
+                                    Navigator.of(context).pop();
+                                  });
+                                },
+                              )
+                          ) : SizedBox(),
+                          patient['sig기계'] != ""? Expanded(
+                              child: ElevatedButton(
+                                child: Text('Sig ${patient['sig기계']}'),
+                                onPressed: () {
+                                  setState(() {
+                                    selectedScopyName = patient['sig기계'];
+                                    selectedPatientNameAndScopyName = patient['이름'] + " (Sig " + patient['sig기계'] + ")";
+                                    patientAndExamInformation = Map<String, dynamic>.from(patient);
+                                    Navigator.of(context).pop();
+                                  });
+                                },
+                              )
+                          ) : SizedBox(),
+                        ],
+                      ),
                     );
-                 }
+                 },
+               separatorBuilder: (BuildContext context, int index) => const Divider(),
              ),
            ),
           );
@@ -1071,77 +1129,49 @@ class _WashingRoomState extends State<WashingRoom> {
     return SingleChildScrollView(
       child: Column(
         children: <Widget>[
-          Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-                Expanded(
-                    child: machineButton(index: 1, machineName: '1호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
-                ),
-                Expanded(child: SizedBox()),
-                Expanded(
-                    child: machineButton(index: 3, machineName: '3호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
-                ),
-                Expanded(child: SizedBox()),
-                Expanded(
-                    child: machineButton(index: 5, machineName: '5호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
-                ),
-              ]),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: <Widget>[
-              Expanded(child: SizedBox()),
-              Expanded(
-                child: machineButton(index: 2, machineName: '2호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-              ),
-              Expanded(child: SizedBox()),
-              Expanded(
-                child: machineButton(index: 4, machineName: '4호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-              ),
-              Expanded(child: SizedBox()),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal, // 가로 방향으로 스크롤 가능하게 설정
+            child: Row(
+              children: [
+                machineButton(index: 1, machineName: '1호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+                SizedBox(width: 10,),
+                machineButton(index: 2, machineName: '2호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+                SizedBox(width: 10,),
+                machineButton(index: 3, machineName: '3호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+                SizedBox(width: 10,),
+                machineButton(index: 4, machineName: '4호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+                SizedBox(width: 10,),
+                machineButton(index: 5, machineName: '5호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
+              ],
+            ),
           ),
-          // const Divider(
-          //   color: Colors.black,
-          //   height: 20.0,
-          // ),
-
-          Column(
-            children: buildEndoscopyButtons(scopyShortName),
-          ),
-
-
-          // const Divider(
-          //   color: Colors.black,
-          //   height: 20.0,
-          // ),
-
+          SizedBox(height: 10,),
           Row(
-            children: <Widget>[
+            children: [
               Expanded(
-                  flex: 2,
                   child: ElevatedButton(
                     onPressed: showPatientInfoDialog,
                     child: Text(
-                        selectedPatientName,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                      selectedPatientNameAndScopyName,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16
                       ),
                     ),
                     style: ButtonStyle(
                       backgroundColor: MaterialStateProperty.all(const Color(0xFF6AD4DD)),
                       shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                         RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
+                          borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
                         ),
-
                       ),
+                      fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
                     ),
                   )
               ),
+              SizedBox(width: 10,),
               Expanded(
-                flex: 3,
                 child: ElevatedButton(
                   onPressed: () => _store(selectedMachineName, selectedScopyName, patientAndExamInformation, appBarDate),
                   child: Text(
@@ -1149,21 +1179,23 @@ class _WashingRoomState extends State<WashingRoom> {
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 16
                     ),
                   ),
                   style: ButtonStyle(
                     backgroundColor: MaterialStateProperty.all(const Color(0xFF5F5D9C)),
                     shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                       RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
+                        borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
                       ),
-
                     ),
+                    fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
                   ),
                 ),
               ),
             ],
           ),
+
           Row(
             children: <Widget> [
               ElevatedButton(
