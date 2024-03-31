@@ -106,7 +106,7 @@ class _WashingRoomState extends State<WashingRoom> {
     return milliseconds;
   }
 
-  String timeToformattedFormAsyyyyMMddHHMM(DateTime time) {
+  String timeToformattedFormAsyyyyMMddHHmm(DateTime time) {
     //DateTime now = DateTime.now().toUtc().add(Duration(hours: 9));
     String formattedDate = DateFormat('yyyy-MM-dd HH:mm').format(time);
     return formattedDate;
@@ -161,11 +161,7 @@ class _WashingRoomState extends State<WashingRoom> {
       // 기계 별 세척액 변경 기록 가져오기
       QuerySnapshot washerChangeSnapshot = await firestore.collectionGroup('washerChanges').get();
       machineWasherChange = {
-        '1호기': [],
-        '2호기': [],
-        '3호기': [],
-        '4호기': [],
-        '5호기': [],
+        '1호기':['2000-01-01 00:00'], '2호기':['2000-01-01 00:00'], '3호기':['2000-01-01 00:00'], '4호기':['2000-01-01 00:00'], '5호기':['2000-01-01 00:00']
       };
       for (QueryDocumentSnapshot doc in washerChangeSnapshot.docs) {
         String machineName = doc.reference.parent.parent!.id;
@@ -219,10 +215,26 @@ class _WashingRoomState extends State<WashingRoom> {
   }
 
 
+  Future<void> updateMachineWasherChangeToFirestore(String machine, String oldWasherChangeDate, DateTime time) async {
+    final firestore = FirebaseFirestore.instance;
+
+    final changeDate = timeToformattedFormAsyyyyMMddHHmm(time);
+    
+    try {
+      QuerySnapshot querySnapshot =  await firestore.collection('machines').doc(machine).collection('washerChanges').where('changeDate', isEqualTo:oldWasherChangeDate).get();
+      for (var doc in querySnapshot.docs) {
+        await firestore.collection('machines').doc(machine).collection('washerChanges').doc(doc.id).update({'changeDate':changeDate});
+      }
+      print('washer change date Data updated successfully!');
+    } catch (e) {
+      print('Error saving data to Firestore: $e');
+    }
+  }
+
   Future<void> saveMachineWasherChangeToFirestore(String machine, DateTime time) async {
     final firestore = FirebaseFirestore.instance;
 
-    final changeDate = timeToformattedFormAsyyyyMMddHHMM(time);
+    final changeDate = timeToformattedFormAsyyyyMMddHHmm(time);
     Map<String, String> data = {'changeDate' :changeDate};
     try {
       await firestore.collection('machines').doc(machine).collection('washerChanges').add(data);
@@ -231,6 +243,8 @@ class _WashingRoomState extends State<WashingRoom> {
       print('Error saving data to Firestore: $e');
     }
   }
+
+
 
 
   Future<void> saveMachineScopyTimePtIDToFirestore(String machine, Map<String, String> recordInfo, Map<String, dynamic> patientAndExamInformation) async {
@@ -260,8 +274,7 @@ class _WashingRoomState extends State<WashingRoom> {
 
 
   void _store(String machineName, String scopy, Map<String, dynamic> patientAndExamInformation, String appBarDate) async {
-
-
+    print('appBarDate:$appBarDate');
 
     if (!_isPressedMachine) {
       showDialog(
@@ -330,7 +343,7 @@ class _WashingRoomState extends State<WashingRoom> {
     if (appBarDate == 'Today') {
       print ('Today');
       if (_isPressedMachine ) {
-        final currentTime = timeToformattedFormAsyyyyMMddHHMM(DateTime.now());
+        final currentTime = timeToformattedFormAsyyyyMMddHHmm(DateTime.now());
         if (GSFmachine.containsKey(scopy) && patientAndExamInformation['위내시경기계'] == scopy) {
           patientAndExamInformation['위세척기계'] = machineName;
           patientAndExamInformation['위내시경세척시간'] = currentTime;
@@ -361,10 +374,19 @@ class _WashingRoomState extends State<WashingRoom> {
       DateTime otherDateAndTime = DateTime(
           date.year, date.month, date.day, picked!.hour, picked.minute
       );
-      String otherDateAndTimeFormattedForm = DateFormat('yyyy-MM-dd HH:mm').format(otherDateAndTime);
+      String otherTime = DateFormat('HH:mm').format(otherDateAndTime);
+      if (GSFmachine.containsKey(scopy) && patientAndExamInformation['위내시경기계'] == scopy) {
+        patientAndExamInformation['위세척기계'] = machineName;
+        patientAndExamInformation['위내시경세척시간'] = timeToformattedFormAsyyyyMMddHHmm(otherDateAndTime);
+      }
+      if (CSFmachine.containsKey(scopy) && patientAndExamInformation['대장내시경기계'] == scopy) {
+        patientAndExamInformation['대장세척기계'] = machineName;
+        patientAndExamInformation['대장내시경세척시간'] = timeToformattedFormAsyyyyMMddHHmm(otherDateAndTime);
+      }
+
       //SharedPreferences prefs = await SharedPreferences.getInstance();
-      Map<String, String> newInfo = {'날짜-시간':otherDateAndTimeFormattedForm, '일련번호':scopy, '환자정보':patientAndExamInformation['id']};
-      Map<String, String> newInfoWithName = {'날짜-시간':otherDateAndTimeFormattedForm, '일련번호':scopy, '환자이름':patientAndExamInformation['이름']};
+      Map<String, String> newInfo = {'날짜-시간':timeToformattedFormAsyyyyMMddHHmm(otherDateAndTime), '일련번호':scopy, '환자정보':patientAndExamInformation['id']};
+      Map<String, String> newInfoWithName = {'날짜-시간':timeToformattedFormAsyyyyMMddHHmm(otherDateAndTime), '일련번호':scopy, '환자이름':patientAndExamInformation['이름']};
       setState(() {
         machineScopyTimePtName[machineName]!.add(newInfoWithName);
       });
@@ -384,16 +406,14 @@ class _WashingRoomState extends State<WashingRoom> {
 
   void deleteItemFromFirestore(String machineName, Map<String, dynamic> scopyTimePtName) async {
     final firestore = FirebaseFirestore.instance;
-    //String docId = '${scopyTimePtName['일련번호']}_${scopyTimePtName['날짜-시간']}'; // 고유 ID 생성 방식이 데이터에 맞게 조정되어야 합니다.
-    print('scopyTimePtName:$scopyTimePtName');
 
     try {
       String id = scopyTimePtName['검사ID'];
+      print ('id:$id');
       QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:id).get();
       if (querySnapshot.docs.isNotEmpty) {
         for (var doc in querySnapshot.docs) {
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          print('찻았다:$data');
           if (GSFmachine.containsKey(scopyTimePtName['일련번호'])) {
             data['위세척기계'] = "";
             data['위내시경세척시간'] = "";
@@ -402,7 +422,6 @@ class _WashingRoomState extends State<WashingRoom> {
             data['대장세척기계'] = "";
             data['대장내시경세척시간'] = "";
           }
-          print('data:$data');
           await firestore.collection('patients').doc(doc.id).update(data);
         }
       }
@@ -411,7 +430,6 @@ class _WashingRoomState extends State<WashingRoom> {
       print('Error deleting document: $e');
     }
   }
-
 
 
   void deleteItem(String machineName, Map endoscopyTimePtName) {
@@ -694,6 +712,7 @@ class _WashingRoomState extends State<WashingRoom> {
         if (!machineWasherChange[machineName]!.contains(formattedDateTime)) {
           setState(() {
             machineWasherChange[machineName]!.add(formattedDateTime);
+            machineWasherChange[machineName] = sortwasherChangeByDateTime(machineWasherChange[machineName]!);
           });
           //SharedPreferences prefs = await SharedPreferences.getInstance();
           // await prefs.setString(
@@ -754,7 +773,7 @@ class _WashingRoomState extends State<WashingRoom> {
                                 IconButton(
                                   onPressed: () {
                                     setState(() {
-                                      _deleteMachineWasherChangeDate(machineName, index, setState);
+                                      _deleteMachineWasherChangeDate(machineName, machineWasherChange[machineName]![index], setState);
                                     });
                                   },
                                   icon: Icon(Icons.delete, size: 20),
@@ -809,13 +828,14 @@ class _WashingRoomState extends State<WashingRoom> {
       lastDate: DateTime(2100),
       //locale: const Locale('ko', 'KR'),
     );
+    String oldWasherChangeDate = machineWasherChange[machineName]![index];
     if (picked != null && !machineWasherChange[machineName]!.contains(DateFormat('yyyy-MM-dd').format(picked))) {
       setState(() {
         machineWasherChange[machineName]![index]= DateFormat('yyyy-MM-dd').format(picked);
       });
       // SharedPreferences prefs = await SharedPreferences.getInstance();
       // await prefs.setString('machineWasherChange', jsonEncode(machineWasherChange));
-      saveMachineWasherChangeToFirestore(machineName, picked);
+      updateMachineWasherChangeToFirestore(machineName, oldWasherChangeDate, picked);
 
     }
   }
@@ -843,13 +863,13 @@ class _WashingRoomState extends State<WashingRoom> {
   }
 
 
-  Future<void> _deleteMachineWasherChangeDate(String machineName, int index, StateSetter setState) async {
+  Future<void> _deleteMachineWasherChangeDate(String machineName, String changeDate, StateSetter setState) async {
     setState(() {
       if (machineWasherChange[machineName] != null) {
-        machineWasherChange[machineName]!.removeAt(index);
+        machineWasherChange[machineName]!.remove(changeDate);
       }
     });
-    _deleteMachineWasherChangeDateFromFirebase(machineName, machineWasherChange[machineName]![index]);
+    _deleteMachineWasherChangeDateFromFirebase(machineName, changeDate);
     // SharedPreferences prefs = await SharedPreferences.getInstance();
     // await prefs.setString('machineWasherChange', jsonEncode(machineWasherChange));
   }
@@ -986,9 +1006,9 @@ class _WashingRoomState extends State<WashingRoom> {
 
   DateTime selectedDateInPatientInfoDialog = DateTime.now();
   Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"", "시간":"",
-    "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"", "위세척기계":"", "위내시경세척시간":"",
-    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"", "대장세척기계":"", "대장내시경세척시간":"",
-    "sig기계":"", "sig조직":"","sig절제술":"", "sig응급":false,
+    "위검진_외래" : "", "위수면_일반":"", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false, "위내시경기계":"", "위세척기계":"", "위내시경세척시간":"",
+    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"0", "대장절제":"0", "대장응급":false, "대장내시경기계":"", "대장세척기계":"", "대장내시경세척시간":"",
+    "sig기계":"", "sig조직":"0","sig절제술":"0","sig응급":false,
   };
   String selectedPatientNameAndScopyName = "환자";
 

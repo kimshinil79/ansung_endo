@@ -1,5 +1,6 @@
 import 'package:ansung_endo/tabs/examination_room.dart';
 import 'package:ansung_endo/tabs/washing_room.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,6 +17,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: MyHomePage(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -44,14 +46,34 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('안성 성모 내시경센터'),
-        // bottom: TabBar(
-        //   controller: _tabController,
-        //   tabs: [
-        //     Tab(text: '검사실'),
-        //     Tab(text: '세척실'),
-        //   ],
-        // ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                  '안성 성모 내시경센터',
+                  style: TextStyle(
+                    fontSize: 27,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.pink,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(2.0, 2.0),
+                        blurRadius: 2.0,
+                        color: Colors.red.withOpacity(0.5),
+                      ),
+                      // 필요하다면 더 많은 Shadow 객체를 리스트에 추가할 수 있습니다.
+                    ],
+                  ),
+              ),
+            ),
+            Image.asset(
+              'assets/images/ansung.png', // assets 폴더에 이미지를 위치시켜야 합니다.
+              width: 40, // 이미지의 너비를 조절
+              height: 40, // 이미지의 높이를 조절
+            ),
+          ],
+        ),
       ),
       body: TabBarView(
         controller: _tabController,

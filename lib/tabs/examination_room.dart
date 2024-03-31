@@ -18,9 +18,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   final firestore = FirebaseFirestore.instance;
 
   Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"", "시간":"",
-    "위검진_외래" : "", "위수면_일반":"", "위조직":"", "CLO":false, "위절제술":"", "위응급":false, "PEG":false, "위내시경기계":"", "위세척기계":"", "위내시경세척시간":"",
-    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"", "대장절제":"", "대장응급":false, "대장내시경기계":"", "대장세척기계":"", "대장내시경세척시간":"",
-    "sig기계":"", "sig조직":"","sig절제술":"","sig응급":false,
+    "위검진_외래" : "", "위수면_일반":"", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false, "위내시경기계":"", "위세척기계":"", "위내시경세척시간":"",
+    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"0", "대장절제":"0", "대장응급":false, "대장내시경기계":"", "대장세척기계":"", "대장내시경세척시간":"",
+    "sig기계":"", "sig조직":"0","sig절제술":"0","sig응급":false,
   };
 
   final List<String> docs = ['이병수', '권순범', '김신일','한융희', '이기섭'];
@@ -131,15 +131,25 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     return Container(
       padding: EdgeInsets.all(1.0), // 내부 여백을 추가합니다.
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border.all(
-          color: Colors.black54, // 테두리 색상
-          width: 1.0, // 테두리 두께
+          color: Colors.indigoAccent, // 테두리 색상
+          width: 2.0, // 테두리 두께
         ),
-        borderRadius: BorderRadius.circular(5.0), // 테두리 모서리를 둥글게 합니다.
+        borderRadius: BorderRadius.circular(10.0),
+        boxShadow: [ // 그림자 목록 설정
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5), // 그림자 색상 설정 (투명도 포함)
+            spreadRadius: 1, // 그림자의 범위 설정
+            blurRadius: 6, // 그림자의 블러 효과 설정
+            offset: Offset(0, 3), // x,y 오프셋 설정 (가로, 세로 방향)
+          ),
+        ],
+        // 테두리 모서리를 둥글게 합니다.
       ),
       child: Column(
         children: [
-          Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
+          Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigoAccent.withOpacity(0.5))),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -173,42 +183,84 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   }
 
   Widget _textFormInExamRoom(String title) {
-    return TextFormField(
-      controller: controllders[title],
-      textAlign: TextAlign.center,
-      decoration: InputDecoration(
-        labelText: title,
-        labelStyle: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold, // 글씨를 굵게
-          color: Colors.red, // 색상을 빨간색으로
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border:Border.all(
+          width: 2,
+          color: Colors.indigoAccent,
         ),
-        border: OutlineInputBorder( // 테두리 추가
-          borderSide: BorderSide(
-            color: Colors.blue, // 테두리 색상
-            width: 2.0, // 테두리 두께
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.5), // 그림자 색상 설정 (투명도 포함)
+            spreadRadius: 1, // 그림자의 넓이 설정
+            blurRadius: 6, // 그림자의 블러 효과 설정
+            offset: Offset(0, 3), // x, y 오프셋 설정 (가로, 세로 방향)
           ),
-        ),
+        ],
+        borderRadius: BorderRadius.circular(10), // 모서리 둥글기 설정
       ),
-      onChanged: (value) {
-        patientAndExamInformation[title] = value;
-        //controllders['이름']?.text = value;
-      },
+      child: TextFormField(
+        controller: controllders[title],
+        textAlign: TextAlign.center,
+        decoration: InputDecoration(
+          //alignLabelWithHint: true,
+          labelText: title,
+          labelStyle: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold, // 글씨를 굵게
+            color: Colors.indigoAccent.withOpacity(0.3),
+
+          ),
+          // border: OutlineInputBorder( // 테두리 추가
+          //   borderSide: BorderSide(
+          //     color: Colors.blue, // 테두리 색상
+          //     width: 2.0, // 테두리 두께
+          //   ),
+          //   borderRadius: BorderRadius.circular(10),
+          //
+          // ),
+        ),
+        onChanged: (value) {
+          patientAndExamInformation[title] = value;
+          //controllders['이름']?.text = value;
+        },
+      ),
     );
   }
 
   Widget _dropDownInExamRoom(String title, List<String> items) {
     return DropdownButton<String> (
-      itemHeight: 70,
+      itemHeight: 50,
       value: items.contains(patientAndExamInformation[title])
-          ? patientAndExamInformation[title]
+          ? patientAndExamInformation[title] != "0" ? patientAndExamInformation[title] :null
           : null,
-      hint: Text(title),
+      hint: Center(
+        //alignment: Alignment.center,
+        child: Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.indigoAccent.withOpacity(0.5),
+            ),
+          textAlign: TextAlign.center,
+        ),
+      ),
       isExpanded: true,
       items: items.map<DropdownMenuItem<String>>((String value) {
         return DropdownMenuItem<String>(
           value: value,
-          child: Text(value),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                    value,
+                    textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
         );
       }).toList(),
       onChanged: (String? value) {
@@ -232,7 +284,8 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     if (picked != null && picked != selectedDate) {
       setState(() {
         selectedDate = picked; // 선택된 날짜로 상태 업데이트
-        patientAndExamInformation['날짜'] = selectedDate;
+        patientAndExamInformation['날짜'] = DateFormat('yyyy-MM-dd').format(selectedDate);
+        print ('야호:${patientAndExamInformation['날짜']}');
       });
     }
   }
@@ -477,14 +530,19 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                 child: Text(
                     appBarDate,
                     style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 15
+                      color: Colors.white,
+                      fontSize: 17
                     )
                 ),
                 style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all(const Color(0xFF6AD4DD)),
                   shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                     RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(
+                          color: Colors.indigoAccent,
+                          width: 2
+                      ),
                     )
                   )
                 ),
@@ -505,7 +563,22 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                   children: [
                     Row(
                       children: [
-                        Text('위 내시경', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        Text(
+                            '위 내시경',
+                            style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.pinkAccent,
+                                shadows: [
+                                  Shadow(
+                                    offset: Offset(2.0, 2.0),
+                                    blurRadius: 2.0,
+                                    color: Colors.blueGrey.withOpacity(0.5),
+                                  ),
+                                  // 필요하다면 더 많은 Shadow 객체를 리스트에 추가할 수 있습니다.
+                                ],
+                            )
+                        ),
                         Checkbox(
                           tristate:false,
                           value: GSF,
@@ -527,12 +600,12 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                             child: Text('$totalExamNum명', style: TextStyle(fontSize: 20, color: Colors.white),),
                             style: ButtonStyle(
                               // 배경 색상 설정
-                              backgroundColor: MaterialStateProperty.all(Colors.indigoAccent),
+                              backgroundColor: MaterialStateProperty.all(Colors.indigo),
                               // 테두리 모양 및 색상 설정
                               shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                                 RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(5.0), // 테두리 둥근 정도 조절
-                                  side: BorderSide(color: Colors.purple), // 테두리 색상 및 두께 조절
+                                  side: BorderSide(color: Colors.indigoAccent), // 테두리 색상 및 두께 조절
                                 ),
                               ),
                             ),
@@ -648,7 +721,22 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                   children: [
                     Row(
                       children: [
-                        Text('대장 내시경', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        Text(
+                            '대장 내시경',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.pinkAccent,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(2.0, 2.0),
+                                blurRadius: 2.0,
+                                color: Colors.blueGrey.withOpacity(0.5),
+                              ),
+                              // 필요하다면 더 많은 Shadow 객체를 리스트에 추가할 수 있습니다.
+                            ],
+                            )
+                        ),
                         Checkbox(
                           tristate:false,
                           value: CSF,
@@ -716,7 +804,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Text('대장내시경 모델명', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
+                                  child: Text('대장내시경 모델명', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigoAccent)),
                                 ),
                                 Expanded(
                                   child: _dropDownInExamRoom('대장내시경기계', CSFmachine.keys.toList()),
@@ -741,7 +829,22 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                   children: [
                     Row(
                       children: [
-                        Text('Sigmoidoscopy', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        Text(
+                            'S상 결장경',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.pinkAccent,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(2.0, 2.0),
+                                blurRadius: 2.0,
+                                color: Colors.blueGrey.withOpacity(0.5),
+                              ),
+                              // 필요하다면 더 많은 Shadow 객체를 리스트에 추가할 수 있습니다.
+                            ],
+                            ),
+                        ),
                         Checkbox(
                           tristate:false,
                           value: sig,
@@ -796,7 +899,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: Text('Sig 모델명', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
+                                    child: Text('Sig 모델명', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigoAccent)),
                                   ),
                                   Expanded(
                                     child: _dropDownInExamRoom('sig기계', [...GSFmachine.keys.toList(), ...CSFmachine.keys.toList()]),
@@ -899,7 +1002,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                 print('full:$patientAndExamInformation');
               },
               style: ButtonStyle(
-                backgroundColor: MaterialStateProperty.all(Colors.white24),
+                backgroundColor: MaterialStateProperty.all(Colors.teal),
                 minimumSize: MaterialStateProperty.all(Size(double.infinity, 40)),
                 shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                   RoundedRectangleBorder(
