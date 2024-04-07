@@ -1,3 +1,5 @@
+//import 'dart:html';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -8,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+
 class ExaminationRoom extends StatefulWidget {
   @override
   _ExaminationRoomState createState() => _ExaminationRoomState();
@@ -17,14 +20,15 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
   final firestore = FirebaseFirestore.instance;
 
-  Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "생일":"", "의사":"", "날짜":"", "시간":"",
-    "위검진_외래" : "", "위수면_일반":"", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false, "위내시경기계":"", "위세척기계":"", "위내시경세척시간":"",
-    "대장검진_외래":"", "대장수면_일반":"", "대장조직":"0", "대장절제":"0", "대장응급":false, "대장내시경기계":"", "대장세척기계":"", "대장내시경세척시간":"",
+  Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "Room":"", "생일":"", "의사":"", "날짜":"", "시간":"",
+    "위검진_외래" : "검진", "위수면_일반":"수면", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false, "위내시경기계":<String>[], "위세척기계":<String>[], "위내시경세척시간":<String>[],
+    "대장검진_외래":"외래", "대장수면_일반":"수면", "대장조직":"0", "대장절제술":"0", "대장응급":false, "대장내시경기계":<String>[], "대장세척기계":<String>[], "대장내시경세척시간":<String>[],
     "sig기계":"", "sig조직":"0","sig절제술":"0","sig응급":false,
   };
 
   final List<String> docs = ['이병수', '권순범', '김신일','한융희', '이기섭'];
-  final List<String> numAsString = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  final List<String> rooms = ['1','2','3'];
+  final List<String> numAsString = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 
 
@@ -35,15 +39,20 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   bool? GSF = true;
   bool? CSF = false;
   bool? sig = false;
+  bool? gsfEtc = false;
+  bool? csfETc = false;
   String? selectedDoctor;
   String appBarDate = "";
   int totalExamNum = 0;
   bool? newData = true;
   bool? editing = false;
+  bool storeButtonDisabled = true;
 
   DateTime selectedDateInPatientInfoDialog = DateTime.now();
   Map<String, TextEditingController> controllders = {};
   Map<String, String> fullPatientInformation = {};
+  List<String> selectedGSFMachines = [];
+  List<String> selectedCSFMachines = [];
 
   @override
   void initState() {
@@ -72,6 +81,10 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
           controllders['나이']?.text = patientAndExamInformation['나이'];
           patientAndExamInformation['생일'] = args['생일'] ?? patientAndExamInformation['생일'];
           controllders['생일']?.text = patientAndExamInformation['생일'];
+          patientAndExamInformation['Room'] = args['Room'];
+          patientAndExamInformation['의사'] = args['의사'];
+          controllders['Room']?.text = patientAndExamInformation['Room'];
+          controllders['의사']?.text = patientAndExamInformation['의사'];
         });
       }
     });
@@ -115,6 +128,35 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   Future<void> updatePatientAndExamInfo(Map<String, dynamic> newInfo) async {
 
     FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    if (GSF == false) {
+      patientAndExamInformation["위검진_외래"] = "";
+      patientAndExamInformation["위수면_일반"] = "";
+      patientAndExamInformation["위조직"] = "0";
+      patientAndExamInformation["CLO"] = false;
+      patientAndExamInformation["위절제술"] = "0";
+      patientAndExamInformation["위응급"] = false;
+      patientAndExamInformation["PEG"] = false;
+      patientAndExamInformation["위내시경기계"] = <String>[];
+      patientAndExamInformation["위세척기계"] = <String>[];
+      patientAndExamInformation["위내시경세척시간"] = <String>[];
+    }
+    if (CSF == false) {
+      patientAndExamInformation["대장검진_외래"] = "";
+      patientAndExamInformation["대장수면_일반"] = "";
+      patientAndExamInformation["대장조직"] = "0";
+      patientAndExamInformation["대장절제술"] = "0";
+      patientAndExamInformation["대장응급"] = false;
+      patientAndExamInformation["대장내시경기계"] = <String>[];
+      patientAndExamInformation["대장세척기계"] = <String>[];
+      patientAndExamInformation["대장내시경세척시간"] = <String>[];
+    }
+    if (sig == false) {
+      patientAndExamInformation["sig조직"] = "0";
+      patientAndExamInformation["sig절제술"] = "0";
+      patientAndExamInformation["sig응급"] = false;
+      patientAndExamInformation["sig기계"] = "";
+    }
 
     QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:newInfo['id']).get();
     if (querySnapshot.docs.isNotEmpty) {
@@ -210,16 +252,8 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
             fontSize: 20,
             fontWeight: FontWeight.bold, // 글씨를 굵게
             color: Colors.indigoAccent.withOpacity(0.3),
-
           ),
-          // border: OutlineInputBorder( // 테두리 추가
-          //   borderSide: BorderSide(
-          //     color: Colors.blue, // 테두리 색상
-          //     width: 2.0, // 테두리 두께
-          //   ),
-          //   borderRadius: BorderRadius.circular(10),
-          //
-          // ),
+          contentPadding: EdgeInsets.symmetric(vertical: 10),
         ),
         onChanged: (value) {
           patientAndExamInformation[title] = value;
@@ -229,11 +263,49 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     );
   }
 
+  Widget _buildGSFMachinesSelection(String title, Map<String, String> scopeType, List<String> selectedScopesList) {
+    return Wrap(
+      spacing: 8.0, // Chip 간의 가로 간격
+      runSpacing: 4.0, // Chip 간의 세로 간격
+      children: scopeType.keys.map((String key) {
+        return ChoiceChip(
+          label: Text(key),
+          selected: selectedScopesList.contains(key),
+          onSelected: (bool selected) {
+            setState(() {
+              if (selected) {
+                selectedScopesList.add(key);
+                patientAndExamInformation[title].add(key);
+              } else {
+                selectedScopesList.removeWhere((String name) {
+                  return name == key;
+                });
+                patientAndExamInformation[title].removeWhere((String name) {
+                  return name == key;
+                });
+              }
+            });
+
+          },
+          selectedColor: Colors.lightBlueAccent,
+          pressElevation: 0,
+          backgroundColor: Colors.grey[200],
+          labelStyle: TextStyle(color: Colors.black),
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: selectedScopesList.contains(key) ? Colors.red : Colors.grey, width: 1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _dropDownInExamRoom(String title, List<String> items) {
     return DropdownButton<String> (
       itemHeight: 50,
       value: items.contains(patientAndExamInformation[title])
-          ? patientAndExamInformation[title] != "0" ? patientAndExamInformation[title] :null
+          ? patientAndExamInformation[title] != "0" ? patientAndExamInformation[title] :
+          title == "Room"? patientAndExamInformation[title]+'번방' : null
           : null,
       hint: Center(
         //alignment: Alignment.center,
@@ -255,7 +327,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
             children: <Widget>[
               Expanded(
                 child: Text(
-                    value,
+                    title == "Room"? value+'번방' : value,
                     textAlign: TextAlign.center,
                 ),
               ),
@@ -271,10 +343,94 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     );
   }
 
+
+
+  String stomachBxRadioValue = '없음';
+  Map<String, String> stomachOrColonBxOrpolypectomy = {'stomachBx':'없음', 'colonBx':'없음', 'stomachPolypectomy':'없음', 'colonPolypectomy':"없음"};
+
+  Widget _dropDownForScopes(String title, String anatomyandProcedure, List<String> items) {
+
+    return DropdownButton<String> (
+      itemHeight: 50,
+      value: patientAndExamInformation[title] == '0' ? null : patientAndExamInformation[title],
+      hint: Center(
+        //alignment: Alignment.center,
+        child: Text(
+          '없음',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black.withOpacity(0.5),
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+      isExpanded: true,
+      items: items.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: (String? value) {
+        setState(() {
+          patientAndExamInformation[title] = value;
+          stomachOrColonBxOrpolypectomy[anatomyandProcedure] = value!;
+        });
+      },
+    );
+  }
+
+  Widget _buildStomachBxRadioButtonGroup(String title, String anatomyandProcedure) {
+    List<String> labels = ['없음', '1', '2', '3'];
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: labels.map((String label) {
+        return Expanded(
+          child: Row(
+            children: <Widget>[
+              Radio<String>(
+                value: label,
+                groupValue: stomachOrColonBxOrpolypectomy[anatomyandProcedure],
+                onChanged: (String? value) {
+                  setState(() {
+                    stomachOrColonBxOrpolypectomy[anatomyandProcedure] = value!;
+                    patientAndExamInformation[title] = value == '없음' ? '0' : value;
+                    controllders[title]?.text = patientAndExamInformation[title];
+                  });
+                },
+              ),
+              SizedBox(width: 4), // 라디오 버튼과 텍스트 사이의 간격 조정
+              Text(label),
+            ],
+          )
+
+        );
+      }).toList(),
+    );
+  }
+
+
+
   DateTime selectedDate = DateTime.now();
 
 
+
+
   Future<void> _selectDate(BuildContext context) async {
+    //DateTime selectedDate = DateTime.now();
+    print ('397:$selectedDate');
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedDate, // 초기 선택된 날짜
@@ -284,6 +440,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     if (picked != null && picked != selectedDate) {
       setState(() {
         selectedDate = picked; // 선택된 날짜로 상태 업데이트
+        print ('408:$selectedDate');
         patientAndExamInformation['날짜'] = DateFormat('yyyy-MM-dd').format(selectedDate);
         print ('야호:${patientAndExamInformation['날짜']}');
       });
@@ -303,7 +460,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
       for(var doc in querySnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        todayPatients.add(data);
+        if(data['이름'] != '없음') {
+          todayPatients.add(data);
+        }
       }
     } catch (e) {
       print ("데이터를 가져오지 못했습니다. :$e");
@@ -325,8 +484,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
       );
       if (picked != null && picked != selectedDateInPatientInfoDialog) {
         setState(()  {
-          print ('setState');
+          print ('setState in showPatientInfoDialog');
           selectedDateInPatientInfoDialog = picked;
+          selectedDate = picked;
         });
         Navigator.of(context).pop(); // 현재 대화상자 닫기
         showPatientInfoDialog();
@@ -364,40 +524,67 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                   onTap: () {
                     Navigator.of(context).pop();
                     setState(() {
+                      newData = false;
+                      selectedGSFMachines = [];
+                      selectedCSFMachines = [];
                       patientAndExamInformation = Map<String, dynamic>.from(patient);
                       controllders['환자번호']?.text = patientAndExamInformation['환자번호'] ?? '';
                       controllders['이름']?.text = patientAndExamInformation['이름'] ?? '';
                       controllders['성별']?.text = patientAndExamInformation['성별'] ?? '';
                       controllders['나이']?.text = patientAndExamInformation['나이'] ?? '';
                       controllders['생일']?.text = patientAndExamInformation['생일'] ?? '';
+                      appBarDate = patientAndExamInformation['날짜'] ?? 'Today';
+                      controllders['날짜']?.text = patientAndExamInformation['날짜'] ?? '';
+                      controllders['Room']?.text = patientAndExamInformation['Room'] ?? '';
                       controllders['의사']?.text = patientAndExamInformation['의사'] ?? '';
                       controllders['날짜']?.text = patientAndExamInformation['날짜'] ?? '';
                       controllders['시간']?.text = patientAndExamInformation['시간'] ?? '';
-                      controllders['위검진_외래']?.text = patientAndExamInformation['위검진_외래'] ?? '';
-                      controllders['위수면_일반']?.text = patientAndExamInformation['위수면_일반'] ?? '';
-                      controllders['위조직']?.text = patientAndExamInformation['위조직'] ?? '';
-                      controllders['위절제술']?.text = patientAndExamInformation['위절제술'] ?? '';
-                      controllders['위내시경기계']?.text = patientAndExamInformation['위내시경기계'] ?? '';
-                      controllders['대장검진_외래']?.text = patientAndExamInformation['대장검진_외래'] ?? '';
-                      controllders['대장수면_일반']?.text = patientAndExamInformation['대장수면_일반'] ?? '';
-                      controllders['환자번호']?.text = patientAndExamInformation['환자번호'] ?? '';
-                      controllders['대장조직']?.text = patientAndExamInformation['대장조직'] ?? '';
-                      controllders['대장절제']?.text = patientAndExamInformation['대장절제'] ?? '';
-                      controllders['대장내시경기계']?.text = patientAndExamInformation['대장내시경기계'] ?? '';
-                      if ((patient['위내시경기계']) == "") {
+
+
+                      if (patient['위내시경기계'].length == 0) {
                         GSF = false;
                       } else {
                         GSF = true;
+                        controllders['위검진_외래']?.text = patientAndExamInformation['위검진_외래'] ?? '';
+                        controllders['위수면_일반']?.text = patientAndExamInformation['위수면_일반'] ?? '';
+                        controllders['위조직']?.text = patientAndExamInformation['위조직'] ?? '';
+                        controllders['위절제술']?.text = patientAndExamInformation['위절제술'] ?? '';
+                        if (patientAndExamInformation['위내시경기계'] is List) {
+                          for (var scope in patientAndExamInformation['위내시경기계']){
+                            selectedGSFMachines.add(scope);
+                          }
+                        } else {
+                          selectedGSFMachines.add(patientAndExamInformation['위내시경기계']);
+                        }
+
+
                       }
-                      if ((patient['대장내시경기계']) == "") {
+                      if (patient['대장내시경기계'].length == 0) {
                         CSF = false;
                       } else {
                         CSF = true;
+                        controllders['대장검진_외래']?.text = patientAndExamInformation['대장검진_외래'] ?? '';
+                        controllders['대장수면_일반']?.text = patientAndExamInformation['대장수면_일반'] ?? '';
+                        controllders['대장조직']?.text = patientAndExamInformation['대장조직'] ?? '';
+                        controllders['대장절제술']?.text = patientAndExamInformation['대장절제술'] ?? '';
+                        //controllders['대장내시경기계']?.text = patientAndExamInformation['대장내시경기계'] ?? '';
+                        if(patientAndExamInformation['대장내시경기계'] is List) {
+                          for (var scope in patientAndExamInformation['대장내시경기계']){
+                            selectedCSFMachines.add(scope);
+                          }
+                        } else {
+                          selectedCSFMachines.add(patientAndExamInformation['대장내시경기계']);
+                        }
+
                       }
                       if ((patient['sig기계']) == "") {
                         sig = false;
                       } else {
                         sig = true;
+                        controllders['sig기계'] = patientAndExamInformation['sig기계']?? '';
+                        controllders['sig조직'] = patientAndExamInformation['sig조직']?? '0';
+                        controllders['sig절제술'] = patientAndExamInformation['sig절제술']?? '0';
+                        controllders['sig응급'] = patientAndExamInformation['sig응급']?? false;
                       }
                     });
                   },
@@ -488,6 +675,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     final DateFormat DateFormatForAppBarDate = DateFormat('yyyy-MM-dd');
 
     final String formattedDateForAppBar = DateFormatForAppBarDate.format(selectedDate);
+    print ('619:$selectedDate');
+    appBarDate = formattedDateForAppBar;
+    print ('appBarDate 620:$appBarDate');
     final String formattedToday = DateFormatForAppBarDate.format(DateTime.now());
     appBarDate = (formattedToday == formattedDateForAppBar) ? 'Today' : formattedDateForAppBar;
 
@@ -531,7 +721,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                     appBarDate,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 17
+                      fontSize: 14,
                     )
                 ),
                 style: ButtonStyle(
@@ -551,6 +741,10 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
             ),
             SizedBox(width: 10,),
             Expanded(
+                child: _dropDownInExamRoom('Room', rooms),
+            ),
+            SizedBox(width: 10,),
+            Expanded(
               child: _dropDownInExamRoom('의사', docs),
             )
           ],
@@ -566,9 +760,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                         Text(
                             '위 내시경',
                             style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.pinkAccent,
+                                color: Colors.indigo,
                                 shadows: [
                                   Shadow(
                                     offset: Offset(2.0, 2.0),
@@ -639,70 +833,171 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                               ],
                             ),
                             SizedBox(height: 10,),
-                            Row(
+                            Divider(color: Colors.purple,),
+                            Column(
                               children: [
-                                Expanded(
-                                    child:  _dropDownInExamRoom('위절제술', numAsString )),
-                                SizedBox(width: 10,),
-                                Expanded(
-                                    child: Row(
-                                      children: [
-                                        Text('응급', style: TextStyle(fontSize: 18)),
-                                        Checkbox(
-                                          tristate:false,
-                                          value: patientAndExamInformation['위응급'],
-                                          onChanged: (value) {
-                                            setState(() {
-                                              patientAndExamInformation['위응급'] = value;
-                                            });
-                                          },
-                                        ),
-                                      ],
-                                    )),
-                                Expanded(
-                                    child: _dropDownInExamRoom('위조직', numAsString )),
-                                SizedBox(width: 10,),
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      Text('CLO', style: TextStyle(fontSize: 18)),
-                                      Checkbox(
-                                          tristate: false,
-                                          value: patientAndExamInformation['CLO'],
-                                          onChanged: (value) {
-                                            setState(() {
-                                              patientAndExamInformation['CLO'] = value;
-                                            });
-    }
-                                      )
-                                    ],
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    Text(
+                                      '위 조직검사 : [',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: Colors.indigoAccent.withOpacity(0.5),
+                                      ),
+
+                                    ),
+                                    Expanded(
+                                        child: _dropDownForScopes('위조직', 'stomach', numAsString )
+                                    ),
+                                    Text(
+                                      ']',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: Colors.indigoAccent.withOpacity(0.5),
+                                      ),
+
+                                    ),
+                                    SizedBox(width: 20,),
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Text('CLO', style: TextStyle(fontSize: 18)),
+                                          Checkbox(
+                                              tristate: false,
+                                              value: patientAndExamInformation['CLO'],
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  patientAndExamInformation['CLO'] = value;
+                                                });
+                                              }
+                                          )
+                                        ],
+                                      ),
+                                    ),
+
+                                  ],
+                                ),
+                                _buildStomachBxRadioButtonGroup('위조직', 'stomach'),
+                              ],
+                            ),
+                            Divider(color: Colors.purple,),
+                            //SizedBox(width: 10,),
+                            Column(
+                              children: [
+                                TextButton(
+                                  onPressed: () {},
+                                  child: Text(
+                                    '위 내시경 기계',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.indigoAccent.withOpacity(0.5),
+                                    ),
                                   ),
                                 ),
+                                _buildGSFMachinesSelection('위내시경기계', GSFmachine, selectedGSFMachines),
                               ],
                             ),
-                            SizedBox(width: 10,),
+                            Divider(color: Colors.purple,),
                             Row(
                               children: [
-                            Expanded(
-                                child: Row(
-                                  children: [
-                                    Text('PEG', style: TextStyle(fontSize: 18)),
-                                    Checkbox(
-                                      tristate:false,
-                                      value: patientAndExamInformation['PEG'],
-                                      onChanged: (value) {
-                                        setState(() {
-                                          patientAndExamInformation['PEG'] = value;
-                                        });
-                                      },
-                                    ),
-                                ],
-                            )),
-                                Expanded(
-                                  child: _dropDownInExamRoom('위내시경기계', GSFmachine.keys.toList()),
-                                )
+                                Text(
+                                    '기타',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: Colors.indigoAccent.withOpacity(0.5)
+                                  ),
+                                ),
+                                Checkbox(
+                                  tristate:false,
+                                  value: gsfEtc,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      gsfEtc = value;
+                                    });
+                                  },
+                                ),
+                                gsfEtc!? Container(
+                                  child : Row(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '응급',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                              color: Colors.black.withOpacity(0.5),
+                                            ),
+                                          ),
+                                          Checkbox(
+                                            tristate:false,
+                                            value: patientAndExamInformation['위응급'],
+                                            onChanged: (value) {
+                                              setState(() {
+                                                patientAndExamInformation['위응급'] = value;
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'PEG',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                              color: Colors.black.withOpacity(0.5),
+                                            ),
+                                              ),
+                                          Checkbox(
+                                            tristate:false,
+                                            value: patientAndExamInformation['PEG'],
+                                            onChanged: (value) {
+                                              setState(() {
+                                                patientAndExamInformation['PEG'] = value;
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      ),
+
+                                    ],
+                                  )
+                                ) : SizedBox()
                               ],
                             ),
+                            gsfEtc!? Container(
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '위 용종 절제술 : [',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.black.withOpacity(0.5),
+                                    ),
+
+                                  ),
+                                  Expanded(
+                                      child: _dropDownForScopes('위절제술', 'stomachPolypectomy', numAsString )
+                                  ),
+                                  Text(
+                                    ']',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.black.withOpacity(0.5),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ) : SizedBox()
                           ]
                         ),
                       ),
@@ -724,9 +1019,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                         Text(
                             '대장 내시경',
                             style: TextStyle(
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Colors.pinkAccent,
+                              color: Colors.indigo,
                             shadows: [
                               Shadow(
                                 offset: Offset(2.0, 2.0),
@@ -774,43 +1069,90 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                               ],
                             ),
                             SizedBox(height: 10,),
-                            Row(
+                            Divider(color: Colors.purple,),
+                            Column(
                               children: [
-                                Expanded(
-                                    child: Row(
-                                      children: [
-                                        Text('응급', style: TextStyle(fontSize: 18)),
-                                        SizedBox(width: 10),
-                                        Checkbox(
-                                          tristate:false,
-                                          value: patientAndExamInformation['대장응급'],
-                                          onChanged: (value) {
-                                            setState(() {
-                                              patientAndExamInformation['대장응급'] = value;
-                                            });
-                                          },
-                                        ),
-                                      ],
-                                    )),
-                                Expanded(
-                                    child: _dropDownInExamRoom('대장조직', numAsString )),
-                                SizedBox(width: 10,),
-                                Expanded(
-                                    child: _dropDownInExamRoom('대장절제', numAsString )),
-                                SizedBox(width: 10,),
-                              ],
-                            ),
-                            SizedBox(width: 10,),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text('대장내시경 모델명', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigoAccent)),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    Text(
+                                      '대장 용종절제술 : [',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: Colors.indigoAccent.withOpacity(0.5),
+                                      ),
+
+                                    ),
+                                    Expanded(
+                                        child: _dropDownForScopes('대장절제술', 'colonPolypectomy',numAsString )
+                                    ),
+                                    Text(
+                                      ']',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: Colors.indigoAccent.withOpacity(0.5),
+                                      ),
+
+                                    ),
+                                    SizedBox(width: 20,),
+                                  ],
                                 ),
-                                Expanded(
-                                  child: _dropDownInExamRoom('대장내시경기계', CSFmachine.keys.toList()),
-                                )
+                                _buildStomachBxRadioButtonGroup('대장절제술', 'colon'),
                               ],
                             ),
+                            Divider(color: Colors.purple.withOpacity(0.5),),
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    Text(
+                                      '대장 조직검사 : [',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: Colors.indigoAccent.withOpacity(0.5),
+                                      ),
+
+                                    ),
+                                    Expanded(
+                                        child: _dropDownForScopes('대장조직', 'colonBx',numAsString )
+                                    ),
+                                    Text(
+                                      ']',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: Colors.indigoAccent.withOpacity(0.5),
+                                      ),
+
+                                    ),
+                                    SizedBox(width: 20,),
+                                  ],
+                                ),
+                                _buildStomachBxRadioButtonGroup('대장조직', 'colonBx'),
+                              ],
+                            ),
+                            Divider(color: Colors.purple,),
+                            Column(
+                              children: [
+                                TextButton(
+                                  onPressed: () {},
+                                  child: Text(
+                                    '대장 내시경 기계',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.indigoAccent.withOpacity(0.5),
+                                    ),
+                                  ),
+                                ),
+                                _buildGSFMachinesSelection('대장내시경기계', CSFmachine, selectedCSFMachines),
+                              ],
+                            ),
+
                           ],
                         )
                       ),
@@ -832,9 +1174,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                         Text(
                             'S상 결장경',
                             style: TextStyle(
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Colors.pinkAccent,
+                              color: Colors.indigo,
                             shadows: [
                               Shadow(
                                 offset: Offset(2.0, 2.0),
@@ -934,7 +1276,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TakePictureScreen(camera: firstCamera),
+        builder: (context) => TakePictureScreen(camera: firstCamera, previousRoom: patientAndExamInformation['Room'], previousDoc:patientAndExamInformation['의사']),
       ),
     );
   }
@@ -958,6 +1300,27 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   @override
   Widget build(BuildContext context) {
 
+    if (patientAndExamInformation['의사'] !='' && patientAndExamInformation['Room'] != '') {
+      if (GSF!) {
+        print ('GSF disabled? $storeButtonDisabled');
+        storeButtonDisabled =  selectedGSFMachines.length>0 ? false : true;
+        print ('GSF disabled? $storeButtonDisabled');
+      }
+      if (CSF!) {
+        print ('CSF : $patientAndExamInformation');
+        print ('CSF disabled? $storeButtonDisabled / ${selectedCSFMachines.length}');
+        storeButtonDisabled =  selectedCSFMachines.length>0 ? false : true;
+        print ('CSF disabled? $storeButtonDisabled / ${selectedCSFMachines.length}');
+      }
+      if (sig!) {
+        print ('sig disabled? $storeButtonDisabled');
+        storeButtonDisabled = patientAndExamInformation['sig기계'] != "" ? false : true;
+        print ('sig disabled? $storeButtonDisabled');
+      }
+    }
+
+
+
     return Scaffold(
       body: SingleChildScrollView(
         child:Column(
@@ -966,7 +1329,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
               padding: const EdgeInsets.all(8.0),
               child: _buildForm(patientAndExamInformation),
             ),
-            ElevatedButton(
+            storeButtonDisabled? SizedBox(): ElevatedButton(
               child: Text(
                 '저장',
                 style: TextStyle(
@@ -980,10 +1343,20 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                   patientAndExamInformation['날짜'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
                   patientAndExamInformation['시간'] = DateFormat('HH:mm').format(DateTime.now());
                 }
-                final String patientNumber = patientAndExamInformation['환자번호'];
-                final String patientName = patientAndExamInformation['이름'];
-                final String date = patientAndExamInformation['날짜'];
-                final String time = patientAndExamInformation['시간'];
+                if (appBarDate !="Today" && newData!) {
+                  patientAndExamInformation['날짜'] = appBarDate;
+                  final TimeOfDay? pickedTime = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.now(),
+                  );
+                  if (pickedTime != null) {
+                    patientAndExamInformation['시간'] = pickedTime.hour.toString() + ":" + pickedTime.minute.toString();
+                  }
+                }
+                // final String patientNumber = patientAndExamInformation['환자번호'];
+                // final String patientName = patientAndExamInformation['이름'];
+                // final String date = patientAndExamInformation['날짜'];
+                // final String time = patientAndExamInformation['시간'];
 
                 try {
                   await updatePatientAndExamInfo(patientAndExamInformation);
@@ -1029,8 +1402,15 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
 class TakePictureScreen extends StatefulWidget {
   final CameraDescription camera;
+  final String previousRoom;
+  final String previousDoc;
 
-  const TakePictureScreen({Key? key, required this.camera}) : super(key: key);
+  const TakePictureScreen({
+    Key? key,
+    required this.camera,
+    required this.previousRoom,
+    required this.previousDoc,
+  }) : super(key: key);
 
   @override
   TakePictureScreenState createState() => TakePictureScreenState();
@@ -1061,8 +1441,10 @@ class TakePictureScreenState extends State<TakePictureScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final previousRoom = widget.previousRoom;
+    final previousDoc = widget.previousDoc;
     return Scaffold(
-      appBar: AppBar(title: Text('Take a picture')),
+      appBar: AppBar(title: Text('환자 정보를 찍어주세요')),
       // You must wait until the controller is initialized before displaying the camera preview.
       // Use a FutureBuilder to display a loading spinner until the controller has finished initializing.
       body: FutureBuilder<void>(
@@ -1091,7 +1473,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => DisplayPictureScreen(imagePath: image.path),
+                  builder: (context) => DisplayPictureScreen(imagePath: image.path, previousRoom:previousRoom, previousDoc:previousDoc),
                 ),
               );
             } catch (e) {
@@ -1110,8 +1492,15 @@ class TakePictureScreenState extends State<TakePictureScreen> {
 class DisplayPictureScreen extends StatefulWidget {
 
   final String imagePath;
+  final previousRoom;
+  final previousDoc;
 
-  DisplayPictureScreen({Key? key, required this.imagePath}) : super(key: key);
+  DisplayPictureScreen({
+    Key? key,
+    required this.imagePath,
+    required this.previousRoom,
+    required this.previousDoc,
+  }) : super(key: key);
 
   @override
   _DisplayPictureScreenState createState() => _DisplayPictureScreenState();
@@ -1119,8 +1508,9 @@ class DisplayPictureScreen extends StatefulWidget {
 class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
 
   String _recognizedText = "";
+
   Map<String, TextEditingController> controllers = {};
-  Map<String, String> patientInformation = {'id':"", '환자번호':"", '이름':"", '성별':"", '나이':"", "생일":"", "날짜":""};
+  Map<String, String> patientInformation = {'id':"", '환자번호':"", '이름':"", '성별':"", '나이':"", "생일":"", "날짜":"", "Room":"", "의사":""};
   final firestore = FirebaseFirestore.instance;
 
   @override
@@ -1198,6 +1588,8 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   Widget build(BuildContext context) {
 
     String imagePath = widget.imagePath;
+    String previousRoom = widget.previousRoom;
+    String previousDoc = widget.previousDoc;
 
     String generateUniqueId() {
       var uuid = Uuid();
@@ -1229,9 +1621,11 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                   onPressed: () async {
                     patientInformation['날짜'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
                     patientInformation['id'] = generateUniqueId();
+                    patientInformation['Room'] = previousRoom;
+                    patientInformation['의사'] = previousDoc;
 
                       try {
-                        String docName = patientInformation['이름']! + "_" + patientInformation['날짜']!;
+                        String docName = patientInformation['이름']! + "_" + patientInformation['날짜']! + "_" + patientInformation['id']! ;
                         await firestore.collection('patients').doc(docName).set(patientInformation);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -1258,7 +1652,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   }
   Widget _buildPatientInformationForm() {
     List<Widget> fields = controllers.keys
-        .where((String key) => key != 'id' && key != '날짜')
+        .where((String key) => key != 'id' && key != '날짜' && key !="Room" && key != "의사")
         .map((String key) {
       return TextField(
         controller: controllers[key],

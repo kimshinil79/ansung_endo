@@ -60,7 +60,6 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
-    print ('haha disposed');
     _cameraController?.dispose();
     super.dispose();
   }
@@ -68,7 +67,7 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Take a Picture')),
+      appBar: AppBar(title: Text('환자 정보를 찍어주세요')),
       body: _hasError
           ? Center(child: Text('Error initializing camera.'))
           : FutureBuilder<void>(

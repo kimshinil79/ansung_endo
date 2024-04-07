@@ -50,7 +50,6 @@ dependencies:
   google_ml_kit: ^0.16.3
   http: ^1.2.1
   image_picker: ^1.0.7
-  firebase_core: ^2.7.0
   uuid: ^4.3.3
 
 dev_dependencies:

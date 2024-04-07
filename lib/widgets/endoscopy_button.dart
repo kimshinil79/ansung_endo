@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 class endoscopyButton extends StatefulWidget {
   final VoidCallback onPressed;
   final String text;
-  final bool isSelected;
+  bool isSelected;
 
-  const endoscopyButton({
+  endoscopyButton({
     Key? key,
     required this.onPressed,
     required this.text,
-    this.isSelected = false,
+    required this.isSelected ,
   }) : super(key: key);
 
   @override
@@ -34,24 +34,25 @@ class _endoscopyButtonState extends State<endoscopyButton> {
 
   @override
   Widget build(BuildContext context) {
+    print ('scopyName:${widget.text} / isSelected:${widget.isSelected}');
     return GestureDetector(
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       child: Transform.scale(
         scale: widget.isSelected ? 1.1:1.0,
         child: ElevatedButton(
-          onPressed: null, // GestureDetector가 처리하므로 여기서는 null 처리
+          onPressed: widget.onPressed, // GestureDetector가 처리하므로 여기서는 null 처리
           style: ButtonStyle(
             backgroundColor: MaterialStateProperty.all(
-                widget.isSelected ? const Color(0xFFFFF455) : const Color(0xFFFFC700),
+                widget.isSelected ? const Color(0xFFb3cde0) : const Color(0xFFb3cde0),
 
             ),
             shape: MaterialStateProperty.all(
               RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20), // 모서리 둥글게 처리 제거
+                borderRadius: BorderRadius.circular(15), // 모서리 둥글게 처리 제거
                 side: BorderSide(
-                  width: widget.isSelected ? 3.0:2.0,
-                  color: widget.isSelected ? const Color(0xFFFFF455) : const Color(0xFFFFF455)
+                  width: widget.isSelected ? 2.0:1.0,
+                  color: widget.isSelected ? const Color(0xFF03396c) : const Color(0xFF03396c)
                 ),
               ),
             ),

@@ -1,4 +1,5 @@
 import 'package:ansung_endo/tabs/examination_room.dart';
+import 'package:ansung_endo/tabs/statistics_page.dart';
 import 'package:ansung_endo/tabs/washing_room.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -33,7 +34,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -51,16 +52,16 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           children: [
             Expanded(
               child: Text(
-                  '안성 성모 내시경센터',
+                  '안성 성모 내시경센터 v1.0',
                   style: TextStyle(
                     fontSize: 27,
                     fontWeight: FontWeight.bold,
-                    color: Colors.pink,
+                    color: Colors.indigo,
                     shadows: [
                       Shadow(
                         offset: Offset(2.0, 2.0),
                         blurRadius: 2.0,
-                        color: Colors.red.withOpacity(0.5),
+                        color: const Color(0xFF00A88B).withOpacity(0.5),
                       ),
                       // 필요하다면 더 많은 Shadow 객체를 리스트에 추가할 수 있습니다.
                     ],
@@ -79,7 +80,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
         controller: _tabController,
         children: [
           ExaminationRoom(), // 검사실 탭의 위젯
-          WashingRoom(), // 세척실 탭의 위젯
+          WashingRoom(),
+          StatisticsPage()// 세척실 탭의 위젯
         ],
       ),
       bottomNavigationBar: Material(
@@ -91,6 +93,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
             tabs: [
               Tab(icon: Icon(Icons.search), text: '검사실'), // 아이콘 추가 가능
               Tab(icon: Icon(Icons.cleaning_services), text: '세척실'),
+              Tab(icon:Icon(Icons.bar_chart), text:'통계')
             ],
             // 탭 바의 선택된 탭 색상을 설정합니다.
             labelColor: Colors.white,
