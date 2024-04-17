@@ -1,4 +1,5 @@
 import 'package:ansung_endo/tabs/examination_room.dart';
+import 'package:ansung_endo/tabs/settings.dart';
 import 'package:ansung_endo/tabs/statistics_page.dart';
 import 'package:ansung_endo/tabs/washing_room.dart';
 import 'package:flutter/cupertino.dart';
@@ -34,7 +35,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -52,7 +53,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           children: [
             Expanded(
               child: Text(
-                  '안성 성모 내시경센터 v1.0',
+                  '안성 성모 내시경센터 v1.3',
                   style: TextStyle(
                     fontSize: 27,
                     fontWeight: FontWeight.bold,
@@ -81,7 +82,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
         children: [
           ExaminationRoom(), // 검사실 탭의 위젯
           WashingRoom(),
-          StatisticsPage()// 세척실 탭의 위젯
+          StatisticsPage(),
+          SettingsPage(),// 세척실 탭의 위젯
         ],
       ),
       bottomNavigationBar: Material(
@@ -93,7 +95,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
             tabs: [
               Tab(icon: Icon(Icons.search), text: '검사실'), // 아이콘 추가 가능
               Tab(icon: Icon(Icons.cleaning_services), text: '세척실'),
-              Tab(icon:Icon(Icons.bar_chart), text:'통계')
+              Tab(icon:Icon(Icons.bar_chart), text:'통계'),
+              Tab(icon:Icon(Icons.settings), text:'설정'),
             ],
             // 탭 바의 선택된 탭 색상을 설정합니다.
             labelColor: Colors.white,

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="ansung_endo"
+        android:label="안성성모내시경실"
         android:name="${applicationName}"
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="true"

@@ -16,14 +16,17 @@ class ExaminationRoom extends StatefulWidget {
   _ExaminationRoomState createState() => _ExaminationRoomState();
 }
 
-class _ExaminationRoomState  extends State<ExaminationRoom> {
+class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAliveClientMixin {
 
   final firestore = FirebaseFirestore.instance;
+
+  @override
+  bool get wantKeepAlive => true;
 
   Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "Room":"", "생일":"", "의사":"", "날짜":"", "시간":"",
     "위검진_외래" : "검진", "위수면_일반":"수면", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false, "위내시경기계":<String>[], "위세척기계":<String>[], "위내시경세척시간":<String>[],
     "대장검진_외래":"외래", "대장수면_일반":"수면", "대장조직":"0", "대장절제술":"0", "대장응급":false, "대장내시경기계":<String>[], "대장세척기계":<String>[], "대장내시경세척시간":<String>[],
-    "sig기계":"", "sig조직":"0","sig절제술":"0","sig응급":false,
+    "sig기계":"", "sig조직":"0","sig절제술":"0","sig응급":false,  "sig세척기계":"", "sig세척시간":"",
   };
 
   final List<String> docs = ['이병수', '권순범', '김신일','한융희', '이기섭'];
@@ -32,9 +35,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
 
 
-  final Map<String, String> GSFmachine = {'073':'KG391K073', '180':'5G391K180', '153':'5G391K153','256':'7G391K256','257':'7G391k257',
+   Map<String, String> GSFmachine = {'073':'KG391K073', '180':'5G391K180', '153':'5G391K153','256':'7G391K256','257':'7G391k257',
     '259':'7G391K259','407':'2G348K407', '405':'2G348K405','390':'2G348K390', '333':'2G348K333', '694':'5G348K694'};
-  final Map<String, String> CSFmachine = {'039':'7C692K039', '166':'6C692K166', '098':'5C692K098', '219':'1C664K219', '379':'1C665K379', '515':'1C666K515',};
+   Map<String, String> CSFmachine = {'039':'7C692K039', '166':'6C692K166', '098':'5C692K098', '219':'1C664K219', '379':'1C665K379', '515':'1C666K515',};
 
   bool? GSF = true;
   bool? CSF = false;
@@ -55,8 +58,11 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
   List<String> selectedCSFMachines = [];
 
   @override
-  void initState() {
+  void initState()  {
     super.initState();
+    fetchScopes('GSF');
+
+    fetchScopes('CSF');
     selectedDoctor = patientAndExamInformation['의사'];
 
     appBarDate = "Today";
@@ -68,7 +74,6 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
           .of(context)
           ?.settings
           .arguments as Map<String, dynamic>?;
-      print('!!!!');
       if (args != null) {
         setState(() {
           patientAndExamInformation['id'] = args['id'];
@@ -98,6 +103,32 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     });
     super.dispose();
   }
+
+  Future<void> fetchScopes(String scopeType) async {
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+    DocumentReference docRef = await firestore.collection('scopes').doc(scopeType);
+
+    docRef.get().then((DocumentSnapshot document) {
+      if (document.exists) {
+        setState(() async {
+          if (scopeType == 'GSF') {
+            GSFmachine = Map<String, String>.from(document.data() as Map<String, dynamic>);
+            GSFmachine = await sortMapByKey(GSFmachine);
+          } else if (scopeType == 'CSF') {
+            CSFmachine = Map<String, String>.from(document.data() as Map<String, dynamic>);
+            CSFmachine = await sortMapByKey(CSFmachine);
+          }
+        });
+      } else {
+        print('No such document!');
+      }
+    }).catchError((error) {
+      print("Error getting document: $error");
+    });
+
+
+  }
+
 
   String generateUniqueId() {
     var uuid = Uuid();
@@ -156,11 +187,13 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
       patientAndExamInformation["sig절제술"] = "0";
       patientAndExamInformation["sig응급"] = false;
       patientAndExamInformation["sig기계"] = "";
+      patientAndExamInformation["sig기계"] = <String>[];
+      patientAndExamInformation["sig세척기계"] = <String>[];
+      patientAndExamInformation["sig세척시간"] = <String>[];
     }
 
     QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:newInfo['id']).get();
     if (querySnapshot.docs.isNotEmpty) {
-      print('찾았다!!');
       for (var doc in querySnapshot.docs) {
         await firestore.collection('patients').doc(doc.id).update(newInfo);
         refresh();
@@ -267,38 +300,174 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     return Wrap(
       spacing: 8.0, // Chip 간의 가로 간격
       runSpacing: 4.0, // Chip 간의 세로 간격
-      children: scopeType.keys.map((String key) {
-        return ChoiceChip(
-          label: Text(key),
-          selected: selectedScopesList.contains(key),
-          onSelected: (bool selected) {
-            setState(() {
-              if (selected) {
-                selectedScopesList.add(key);
-                patientAndExamInformation[title].add(key);
-              } else {
-                selectedScopesList.removeWhere((String name) {
-                  return name == key;
-                });
-                patientAndExamInformation[title].removeWhere((String name) {
-                  return name == key;
-                });
-              }
-            });
-
+      children: scopeType.keys.map<Widget>((String key) {
+        return GestureDetector(
+          onLongPress: () {
+            // Show a dialog to confirm deletion
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text("이 항목을 제거하시겠습니까?"),
+                  content: Text("내시경 이름: $key"),
+                  actions: <Widget>[
+                    TextButton(
+                      child: Text('아니오'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    TextButton(
+                      child: Text('네'),
+                      onPressed: () async {
+                        try {
+                          String docName = "";
+                          if (title == '위내시경기계') {
+                            docName = 'GSF';
+                          } else if (title == '대장내시경기계') {
+                            docName = 'CSF';
+                          }
+                          DocumentReference docRef = firestore.collection('scopes').doc(docName);
+                          await docRef.update({
+                            key: FieldValue.delete() // This will delete the specific field from the document
+                          });
+                          setState(() {
+                            scopeType.remove(key);
+                            selectedScopesList.remove(key);
+                            patientAndExamInformation[title].removeWhere((element) => element == key);
+                          });
+                          Navigator.of(context).pop();
+                        } catch (e) {
+                          print("Error deleting item: $e");
+                        }
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
           },
-          selectedColor: Colors.lightBlueAccent,
-          pressElevation: 0,
-          backgroundColor: Colors.grey[200],
-          labelStyle: TextStyle(color: Colors.black),
-          shape: RoundedRectangleBorder(
-            side: BorderSide(color: selectedScopesList.contains(key) ? Colors.red : Colors.grey, width: 1),
-            borderRadius: BorderRadius.circular(20),
+          child: ChoiceChip(
+            label: Text(key),
+            selected: selectedScopesList.contains(key),
+            onSelected: (bool selected) {
+              setState(() {
+                if (selected) {
+                  selectedScopesList.add(key);
+                  if (patientAndExamInformation[title] == null) {
+                    patientAndExamInformation[title] = [];
+                  }
+                  patientAndExamInformation[title].add(key);
+                } else {
+                  selectedScopesList.removeWhere((String name) => name == key);
+                  patientAndExamInformation[title].removeWhere((String name) => name == key);
+                }
+              });
+            },
+            selectedColor: Colors.lightBlueAccent,
+            pressElevation: 0,
+            backgroundColor: Colors.grey[200],
+            labelStyle: TextStyle(color: Colors.black),
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: selectedScopesList.contains(key) ? Colors.red : Colors.grey, width: 1),
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
         );
-      }).toList(),
+      }).toList()
+        ..add(
+          // Adding the IconButton as a separate Widget
+          IconButton(
+            icon: Icon(Icons.add),
+            onPressed: () => _addNewScopeDialog(scopeType, title),
+          ),
+        ),
     );
   }
+
+
+
+  void _addNewScopeDialog(Map<String, String> scopeType, String title) {
+    TextEditingController shortNameController = TextEditingController();
+    TextEditingController fullNameController = TextEditingController();
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("내시경 추가"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextField(
+                controller: shortNameController,
+                decoration: InputDecoration(labelText: '축약이름'),
+              ),
+              TextField(
+                controller: fullNameController,
+                decoration: InputDecoration(labelText: '전체이름'),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('취소'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('추가'),
+              onPressed: () async {
+                String shortName = shortNameController.text;
+                String fullName = fullNameController.text;
+
+                // Firestore에 저장
+                String docName = "";
+                if (title == "위내시경기계") {
+                  docName = 'GSF';
+                }
+                if (title == "대장내시경기계") {
+                  docName = "CSF";
+                }
+                DocumentReference docRef = firestore.collection('scopes').doc(docName);
+                Map<String, String> newScope = {shortName: fullName};
+
+                // Firestore 문서 업데이트
+                docRef.set(newScope, SetOptions(merge: true)).then((_) {
+                  print('Scope added successfully');
+                  setState(() {
+                    scopeType[shortName] = fullName;
+                  });
+                  Navigator.of(context).pop();
+                }).catchError((error) {
+                  print('Failed to add scope: $error');
+                });
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Map<String, String> sortMapByKey(Map<String, String> scopes) {
+
+    // 맵을 엔트리 리스트로 변환
+    var entries = scopes.entries.toList();
+
+    // 리스트를 키 기준으로 오름차순 정렬
+    entries.sort((a, b) => a.key.compareTo(b.key));
+
+    // 정렬된 리스트를 다시 맵으로 변환
+    Map<String, String> sortedGSFmachine = Map.fromEntries(entries);
+
+    // 결과 출력
+
+    return sortedGSFmachine;
+  }
+
 
   Widget _dropDownInExamRoom(String title, List<String> items) {
     return DropdownButton<String> (
@@ -429,7 +598,6 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
   Future<void> _selectDate(BuildContext context) async {
     //DateTime selectedDate = DateTime.now();
-    print ('397:$selectedDate');
 
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -440,9 +608,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     if (picked != null && picked != selectedDate) {
       setState(() {
         selectedDate = picked; // 선택된 날짜로 상태 업데이트
-        print ('408:$selectedDate');
         patientAndExamInformation['날짜'] = DateFormat('yyyy-MM-dd').format(selectedDate);
-        print ('야호:${patientAndExamInformation['날짜']}');
       });
     }
   }
@@ -484,7 +650,6 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
       );
       if (picked != null && picked != selectedDateInPatientInfoDialog) {
         setState(()  {
-          print ('setState in showPatientInfoDialog');
           selectedDateInPatientInfoDialog = picked;
           selectedDate = picked;
         });
@@ -541,7 +706,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                       controllders['시간']?.text = patientAndExamInformation['시간'] ?? '';
 
 
-                      if (patient['위내시경기계'].length == 0) {
+                      if (patient['위내시경기계'][0] == "" || patient['위내시경기계'].isEmpty) {
                         GSF = false;
                       } else {
                         GSF = true;
@@ -559,7 +724,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
 
                       }
-                      if (patient['대장내시경기계'].length == 0) {
+                      if (patient['대장내시경기계'][0] == "") {
                         CSF = false;
                       } else {
                         CSF = true;
@@ -585,6 +750,8 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                         controllders['sig조직'] = patientAndExamInformation['sig조직']?? '0';
                         controllders['sig절제술'] = patientAndExamInformation['sig절제술']?? '0';
                         controllders['sig응급'] = patientAndExamInformation['sig응급']?? false;
+                        controllders['sig세척기계'] = patientAndExamInformation['sig세척기계']?? '';
+                        controllders['sig세척시간'] = patientAndExamInformation['sig세척시간']?? '';
                       }
                     });
                   },
@@ -675,9 +842,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
     final DateFormat DateFormatForAppBarDate = DateFormat('yyyy-MM-dd');
 
     final String formattedDateForAppBar = DateFormatForAppBarDate.format(selectedDate);
-    print ('619:$selectedDate');
     appBarDate = formattedDateForAppBar;
-    print ('appBarDate 620:$appBarDate');
     final String formattedToday = DateFormatForAppBarDate.format(DateTime.now());
     appBarDate = (formattedToday == formattedDateForAppBar) ? 'Today' : formattedDateForAppBar;
 
@@ -769,7 +934,6 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                                     blurRadius: 2.0,
                                     color: Colors.blueGrey.withOpacity(0.5),
                                   ),
-                                  // 필요하다면 더 많은 Shadow 객체를 리스트에 추가할 수 있습니다.
                                 ],
                             )
                         ),
@@ -867,7 +1031,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                                           Text('CLO', style: TextStyle(fontSize: 18)),
                                           Checkbox(
                                               tristate: false,
-                                              value: patientAndExamInformation['CLO'],
+                                              value: patientAndExamInformation['CLO']?? false,
                                               onChanged: (value) {
                                                 setState(() {
                                                   patientAndExamInformation['CLO'] = value;
@@ -1220,7 +1384,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                                           SizedBox(width: 10),
                                           Checkbox(
                                             tristate:false,
-                                            value: patientAndExamInformation['sig응급'],
+                                            value: patientAndExamInformation['sig응급']?? false,
                                             onChanged: (value) {
                                               setState(() {
                                                 patientAndExamInformation['sig응급'] = value;
@@ -1244,7 +1408,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                                     child: Text('Sig 모델명', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigoAccent)),
                                   ),
                                   Expanded(
-                                    child: _dropDownInExamRoom('sig기계', [...GSFmachine.keys.toList(), ...CSFmachine.keys.toList()]),
+                                    child: _dropDownInExamRoom('sig기계', ['219','694']),
                                   )
                                 ],
                               ),
@@ -1299,23 +1463,17 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
 
     if (patientAndExamInformation['의사'] !='' && patientAndExamInformation['Room'] != '') {
       if (GSF!) {
-        print ('GSF disabled? $storeButtonDisabled');
         storeButtonDisabled =  selectedGSFMachines.length>0 ? false : true;
-        print ('GSF disabled? $storeButtonDisabled');
       }
       if (CSF!) {
-        print ('CSF : $patientAndExamInformation');
-        print ('CSF disabled? $storeButtonDisabled / ${selectedCSFMachines.length}');
         storeButtonDisabled =  selectedCSFMachines.length>0 ? false : true;
-        print ('CSF disabled? $storeButtonDisabled / ${selectedCSFMachines.length}');
       }
       if (sig!) {
-        print ('sig disabled? $storeButtonDisabled');
         storeButtonDisabled = patientAndExamInformation['sig기계'] != "" ? false : true;
-        print ('sig disabled? $storeButtonDisabled');
       }
     }
 
@@ -1372,7 +1530,6 @@ class _ExaminationRoomState  extends State<ExaminationRoom> {
                     ),
                   );
                 }
-                print('full:$patientAndExamInformation');
               },
               style: ButtonStyle(
                 backgroundColor: MaterialStateProperty.all(Colors.teal),
@@ -1576,7 +1733,6 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
     setState(() {
       _recognizedText = scannedText; // Update the state with the recognized text
     });
-    print(" info : $patientInformation");
 
     textRecognizer.close(); // It's good practice to close the recognizer when it's no longer needed
 
@@ -1619,10 +1775,12 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
               ),
               ElevatedButton(
                   onPressed: () async {
-                    patientInformation['날짜'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                    DateTime now = DateTime.now();
+                    patientInformation['날짜'] = DateFormat('yyyy-MM-dd').format(now);
                     patientInformation['id'] = generateUniqueId();
                     patientInformation['Room'] = previousRoom;
                     patientInformation['의사'] = previousDoc;
+                    patientInformation['시간'] = DateFormat('HH:mm').format(now);
 
                       try {
                         String docName = patientInformation['이름']! + "_" + patientInformation['날짜']! + "_" + patientInformation['id']! ;
@@ -1639,7 +1797,6 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                           ),
                         );
                       }
-                      print('fromCamera:$patientInformation');
 
                     Navigator.popUntil(context, ModalRoute.withName('/'));
                     Navigator.pushReplacementNamed(context, '/', arguments: patientInformation);
