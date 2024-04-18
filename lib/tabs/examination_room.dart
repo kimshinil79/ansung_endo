@@ -724,7 +724,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
 
 
                       }
-                      if (patient['대장내시경기계'][0] == "") {
+                      if (patient['대장내시경기계'][0] == "" || patient['대장내시경기계'].isEmpty) {
                         CSF = false;
                       } else {
                         CSF = true;
@@ -742,7 +742,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                         }
 
                       }
-                      if ((patient['sig기계']) == "") {
+                      if ((patient['sig기계']) == "" || patient['sig기계'].isEmpty) {
                         sig = false;
                       } else {
                         sig = true;

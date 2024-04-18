@@ -222,7 +222,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
         }
       }
 
-      if ((doc['위내시경기계'] is List) && !doc['위내시경기계'].isEmpty) {
+      if ((doc['위내시경기계'] is List) && !doc['위내시경기계'].isEmpty && doc['위내시경기계'] != null) {
+        print ('여기를 통과 ${doc.data()}');
         if (doc['위내시경기계'][0] !="" && doc['위내시경기계'][0] !="없음") {
           for (var scope in doc['위내시경기계']) {
             data = {
@@ -246,7 +247,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
           }
         }
         try {
-          if ((doc['대장내시경기계'] is List) && !doc['대장내시경기계'].isEmpty) {
+          if ((doc['대장내시경기계'] is List) && !doc['대장내시경기계'].isEmpty && doc['대장내시경기계'] != null) {
             if (doc['대장내시경기계'][0] != "" && doc['대장내시경기계'][0] != "없음") {
               for (var scope in doc['대장내시경기계']) {
                 data = {
@@ -530,7 +531,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
         .where('날짜', isLessThanOrEqualTo: endString)
         .get();
 
-    int stomachCheckup = 0, stomachOutpatient = 0, colonOutpatient = 0, colonCheckup = 0;
+    int stomachCheckup = 0, stomachOutpatient = 0, colonOutpatient = 0, colonCheckup = 0, colonPolyp = 0;
 
     for (var doc in querySnapshot.docs) {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -538,13 +539,15 @@ class _StatisticsPageState extends State<StatisticsPage> {
       if (data['위검진_외래'] == "외래") stomachOutpatient++;
       if (data['대장검진_외래'] == "검진") colonCheckup++;
       if (data['대장검진_외래'] == "외래") colonOutpatient++;
+      if (data['대장절제술'] !='0') colonPolyp++;
     }
 
     int totalScopes = stomachCheckup + stomachOutpatient + colonOutpatient + colonCheckup;
-    showResultsDialog(doctor, totalScopes, stomachCheckup, stomachOutpatient, colonCheckup, colonOutpatient);
+    showResultsDialog(doctor, totalScopes, stomachCheckup, stomachOutpatient, colonCheckup, colonOutpatient, colonPolyp);
   }
 
-  void showResultsDialog(String doctor, int total, int stomachCheckup, int stomachOutpatient, int colonCheckup, int colonOutpatient) {
+  void showResultsDialog(String doctor, int total, int stomachCheckup, int stomachOutpatient, int colonCheckup, int colonOutpatient, int colonPolyp) {
+    final int PDR = (colonPolyp/(colonCheckup+colonOutpatient)*100).toInt();
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -594,6 +597,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   cells: <DataCell>[
                     DataCell(Text('대장내시경 외래')),
                     DataCell(Text('$colonOutpatient')),
+                  ],
+                ),
+                DataRow(
+                  cells: <DataCell>[
+                    DataCell(Text('용종 발견률')),
+                    DataCell(Text('$PDR')),
                   ],
                 ),
                 DataRow(
