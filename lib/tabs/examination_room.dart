@@ -24,9 +24,11 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
   bool get wantKeepAlive => true;
 
   Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "Room":"", "생일":"", "의사":"", "날짜":"", "시간":"",
-    "위검진_외래" : "검진", "위수면_일반":"수면", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false, "위내시경기계":<String>[], "위세척기계":<String>[], "위내시경세척시간":<String>[],
-    "대장검진_외래":"외래", "대장수면_일반":"수면", "대장조직":"0", "대장절제술":"0", "대장응급":false, "대장내시경기계":<String>[], "대장세척기계":<String>[], "대장내시경세척시간":<String>[],
-    "sig기계":"", "sig조직":"0","sig절제술":"0","sig응급":false,  "sig세척기계":"", "sig세척시간":"",
+    "위검진_외래" : "검진", "위수면_일반":"수면", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false,
+    "위내시경":{},
+    "대장검진_외래":"외래", "대장수면_일반":"수면", "대장조직":"0", "대장절제술":"0", "대장응급":false,
+    "대장내시경":{},
+    "sig": {}, "sig조직":"0","sig절제술":"0","sig응급":false,
   };
 
   final List<String> docs = ['이병수', '권순범', '김신일','한융희', '이기섭'];
@@ -56,6 +58,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
   Map<String, String> fullPatientInformation = {};
   List<String> selectedGSFMachines = [];
   List<String> selectedCSFMachines = [];
+  List<String> selectedSigMachines = [];
 
   @override
   void initState()  {
@@ -67,7 +70,10 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
 
     appBarDate = "Today";
     patientAndExamInformation.forEach((key, value) {
-      controllders[key] = TextEditingController(text: value.toString());
+      if (key != "위내시경" && key != "대장내시경" && key != "sig") {
+        controllders[key] = TextEditingController(text: value.toString());
+      }
+
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = ModalRoute
@@ -99,7 +105,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
   @override
   void dispose() {
     controllders.forEach((key, controller) {
-      controller.dispose();
+      if (key != "위내시경" && key != "대장내시경" && key != "sig"){
+        controller.dispose();
+      }
     });
     super.dispose();
   }
@@ -168,9 +176,10 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
       patientAndExamInformation["위절제술"] = "0";
       patientAndExamInformation["위응급"] = false;
       patientAndExamInformation["PEG"] = false;
-      patientAndExamInformation["위내시경기계"] = <String>[];
-      patientAndExamInformation["위세척기계"] = <String>[];
-      patientAndExamInformation["위내시경세척시간"] = <String>[];
+      patientAndExamInformation['위내시경'] = {};
+      // patientAndExamInformation["위내시경기계"] = <String>[];
+      // patientAndExamInformation["위세척기계"] = <String>[];
+      // patientAndExamInformation["위내시경세척시간"] = <String>[];
     }
     if (CSF == false) {
       patientAndExamInformation["대장검진_외래"] = "";
@@ -178,18 +187,19 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
       patientAndExamInformation["대장조직"] = "0";
       patientAndExamInformation["대장절제술"] = "0";
       patientAndExamInformation["대장응급"] = false;
-      patientAndExamInformation["대장내시경기계"] = <String>[];
-      patientAndExamInformation["대장세척기계"] = <String>[];
-      patientAndExamInformation["대장내시경세척시간"] = <String>[];
+      patientAndExamInformation['대장내시경'] = {};
+      // patientAndExamInformation["대장내시경기계"] = <String>[];
+      // patientAndExamInformation["대장세척기계"] = <String>[];
+      // patientAndExamInformation["대장내시경세척시간"] = <String>[];
     }
     if (sig == false) {
       patientAndExamInformation["sig조직"] = "0";
       patientAndExamInformation["sig절제술"] = "0";
       patientAndExamInformation["sig응급"] = false;
-      patientAndExamInformation["sig기계"] = "";
-      patientAndExamInformation["sig기계"] = <String>[];
-      patientAndExamInformation["sig세척기계"] = <String>[];
-      patientAndExamInformation["sig세척시간"] = <String>[];
+      patientAndExamInformation['sig'] = {};
+      // patientAndExamInformation["sig기계"] = <String>[];
+      // patientAndExamInformation["sig세척기계"] = <String>[];
+      // patientAndExamInformation["sig세척시간"] = <String>[];
     }
 
     QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:newInfo['id']).get();
@@ -322,9 +332,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                       onPressed: () async {
                         try {
                           String docName = "";
-                          if (title == '위내시경기계') {
+                          if (title == '위내시경') {
                             docName = 'GSF';
-                          } else if (title == '대장내시경기계') {
+                          } else if (title == '대장내시경') {
                             docName = 'CSF';
                           }
                           DocumentReference docRef = firestore.collection('scopes').doc(docName);
@@ -354,13 +364,18 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
               setState(() {
                 if (selected) {
                   selectedScopesList.add(key);
-                  if (patientAndExamInformation[title] == null) {
-                    patientAndExamInformation[title] = [];
+                  if (patientAndExamInformation[title].isEmpty) {
+                    patientAndExamInformation[title] = {};
                   }
-                  patientAndExamInformation[title].add(key);
+                  if (!patientAndExamInformation[title].containsKey(key)){
+                    print ('scope : $key');
+                    patientAndExamInformation[title][key] = {"세척기계":"", "세척시간":""};
+                    print (patientAndExamInformation);
+                  }
+
                 } else {
                   selectedScopesList.removeWhere((String name) => name == key);
-                  patientAndExamInformation[title].removeWhere((String name) => name == key);
+                  patientAndExamInformation[title].remove(key);
                 }
               });
             },
@@ -468,6 +483,45 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
     return sortedGSFmachine;
   }
 
+  Widget _dropDownForSig(List<String> items) {
+    return DropdownButton<String> (
+      itemHeight: 50,
+      value: null,
+      hint: Center(
+        //alignment: Alignment.center,
+        child: Text(
+          'sig기계',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.indigoAccent.withOpacity(0.5),
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+      isExpanded: true,
+      items: items.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: (String? value) {
+        setState(() {
+          patientAndExamInformation['sig'] = {'세척기계':"", '세척시간':""};
+        });
+      },
+    );
+  }
 
   Widget _dropDownInExamRoom(String title, List<String> items) {
     return DropdownButton<String> (
@@ -705,8 +759,9 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                       controllders['날짜']?.text = patientAndExamInformation['날짜'] ?? '';
                       controllders['시간']?.text = patientAndExamInformation['시간'] ?? '';
 
-
-                      if (patient['위내시경기계'][0] == "" || patient['위내시경기계'].isEmpty) {
+                      if (!patient.containsKey('위내시경')) {
+                        GSF = false;
+                      } else if (patient['위내시경'].isEmpty) {
                         GSF = false;
                       } else {
                         GSF = true;
@@ -714,17 +769,13 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                         controllders['위수면_일반']?.text = patientAndExamInformation['위수면_일반'] ?? '';
                         controllders['위조직']?.text = patientAndExamInformation['위조직'] ?? '';
                         controllders['위절제술']?.text = patientAndExamInformation['위절제술'] ?? '';
-                        if (patientAndExamInformation['위내시경기계'] is List) {
-                          for (var scope in patientAndExamInformation['위내시경기계']){
-                            selectedGSFMachines.add(scope);
-                          }
-                        } else {
-                          selectedGSFMachines.add(patientAndExamInformation['위내시경기계']);
+                        for (var scope in patientAndExamInformation['위내시경'].keys.toList()){
+                          selectedGSFMachines.add(scope);
                         }
-
-
                       }
-                      if (patient['대장내시경기계'][0] == "" || patient['대장내시경기계'].isEmpty) {
+                      if (!patient.containsKey('대장내시경')) {
+                        CSF = false;
+                      } else if (patient['대장내시경'].isEmpty) {
                         CSF = false;
                       } else {
                         CSF = true;
@@ -733,25 +784,24 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                         controllders['대장조직']?.text = patientAndExamInformation['대장조직'] ?? '';
                         controllders['대장절제술']?.text = patientAndExamInformation['대장절제술'] ?? '';
                         //controllders['대장내시경기계']?.text = patientAndExamInformation['대장내시경기계'] ?? '';
-                        if(patientAndExamInformation['대장내시경기계'] is List) {
-                          for (var scope in patientAndExamInformation['대장내시경기계']){
-                            selectedCSFMachines.add(scope);
-                          }
-                        } else {
-                          selectedCSFMachines.add(patientAndExamInformation['대장내시경기계']);
+                        for (var scope in patientAndExamInformation['대장내시경'].keys.toList()){
+                          selectedCSFMachines.add(scope);
                         }
 
                       }
-                      if ((patient['sig기계']) == "" || patient['sig기계'].isEmpty) {
+                      if (!patient.containsKey('sig')) {
+                        sig = false;
+                      } else if ((patient['sig']).isEmpty) {
                         sig = false;
                       } else {
                         sig = true;
-                        controllders['sig기계'] = patientAndExamInformation['sig기계']?? '';
                         controllders['sig조직'] = patientAndExamInformation['sig조직']?? '0';
                         controllders['sig절제술'] = patientAndExamInformation['sig절제술']?? '0';
                         controllders['sig응급'] = patientAndExamInformation['sig응급']?? false;
-                        controllders['sig세척기계'] = patientAndExamInformation['sig세척기계']?? '';
-                        controllders['sig세척시간'] = patientAndExamInformation['sig세척시간']?? '';
+                        for (var scope in patientAndExamInformation['대장내시경'].keys.toList()){
+                          selectedSigMachines.add(scope);
+                        }
+
                       }
                     });
                   },
@@ -1062,7 +1112,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                     ),
                                   ),
                                 ),
-                                _buildGSFMachinesSelection('위내시경기계', GSFmachine, selectedGSFMachines),
+                                _buildGSFMachinesSelection('위내시경', GSFmachine, selectedGSFMachines),
                               ],
                             ),
                             Divider(color: Colors.purple,),
@@ -1313,7 +1363,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                     ),
                                   ),
                                 ),
-                                _buildGSFMachinesSelection('대장내시경기계', CSFmachine, selectedCSFMachines),
+                                _buildGSFMachinesSelection('대장내시경', CSFmachine, selectedCSFMachines),
                               ],
                             ),
 
@@ -1402,15 +1452,22 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                 ],
                               ),
                               SizedBox(width: 10,),
-                              Row(
+                              Divider(color: Colors.purple,),
+                              Column(
                                 children: [
-                                  Expanded(
-                                    child: Text('Sig 모델명', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigoAccent)),
+                                  TextButton(
+                                    onPressed: () {},
+                                    child: Text(
+                                      'sig 모델명',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: Colors.indigoAccent.withOpacity(0.5),
+                                      ),
+                                    ),
                                   ),
-                                  Expanded(
-                                    child: _dropDownInExamRoom('sig기계', ['219','694']),
-                                  )
-                                ],
+                                  _buildGSFMachinesSelection('sig', {'219':'1C664K219', '694':'5G348K694'}, selectedCSFMachines),
+                              ],
                               ),
                             ],
                           )
@@ -1667,7 +1724,13 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   String _recognizedText = "";
 
   Map<String, TextEditingController> controllers = {};
-  Map<String, String> patientInformation = {'id':"", '환자번호':"", '이름':"", '성별':"", '나이':"", "생일":"", "날짜":"", "Room":"", "의사":""};
+  Map<String, dynamic> patientInformation =  {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "Room":"", "생일":"", "의사":"", "날짜":"", "시간":"",
+    "위검진_외래" : "검진", "위수면_일반":"수면", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false,
+    "위내시경":{},
+    "대장검진_외래":"외래", "대장수면_일반":"수면", "대장조직":"0", "대장절제술":"0", "대장응급":false,
+    "대장내시경":{},
+    "sig": {}, "sig조직":"0","sig절제술":"0","sig응급":false,
+  };
   final firestore = FirebaseFirestore.instance;
 
   @override
@@ -1726,8 +1789,11 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
     }
 
     for (var key in patientInformation.keys) {
-      TextEditingController controller = TextEditingController(text: patientInformation[key]);
-      controllers[key] = controller; // Map에 TextEditingController를 저장합니다.
+      if (key == '환자번호' || key == "이름" || key =='성별' || key =='나이' || key =='생일') {
+        TextEditingController controller = TextEditingController(text: patientInformation[key]);
+        controllers[key] = controller; // Map에 TextEditingController를 저장합니다.
+      }
+
     }
 
     setState(() {
@@ -1781,22 +1847,40 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                     patientInformation['Room'] = previousRoom;
                     patientInformation['의사'] = previousDoc;
                     patientInformation['시간'] = DateFormat('HH:mm').format(now);
+                    patientInformation['위검진_외래'] = '검진';
+                    patientInformation['위수면_일반'] = '수면';
+                    patientInformation['위조직'] = "0";
+                    patientInformation['CLO'] = false;
+                    patientInformation['위내시경'] = {};
+                    patientInformation['위절제술'] = "0";
+                    patientInformation['위응급'] = false;
+                    patientInformation['PEG'] = false;
 
-                      try {
-                        String docName = patientInformation['이름']! + "_" + patientInformation['날짜']! + "_" + patientInformation['id']! ;
-                        await firestore.collection('patients').doc(docName).set(patientInformation);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('환자 정보가 저장되었습니다.'),
-                          ),
-                        );
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('환자 정보 저장 중 오류가 발생했습니다: $e'),
-                          ),
-                        );
-                      }
+                    patientInformation['대장검진_외래'] = "검진";
+                    patientInformation['대장수면_일반'] = "수면";
+                    patientInformation['대장조직'] = "0";
+                    patientInformation['대장절제술'] = "0";
+                    patientInformation['대장응급'] = false;
+                    patientInformation['대장내시경'] = {};
+                    patientInformation['sig조직'] = "0";
+                    patientInformation['sig절제술'] = "0";
+                    patientInformation['sig응급'] = false;
+                    patientInformation['sig'] = {};
+                    try {
+                      String docName = patientInformation['이름']! + "_" + patientInformation['날짜']! + "_" + patientInformation['id']! ;
+                      await firestore.collection('patients').doc(docName).set(patientInformation);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('환자 정보가 저장되었습니다.'),
+                        ),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('환자 정보 저장 중 오류가 발생했습니다: $e'),
+                        ),
+                      );
+                    }
 
                     Navigator.popUntil(context, ModalRoute.withName('/'));
                     Navigator.pushReplacementNamed(context, '/', arguments: patientInformation);

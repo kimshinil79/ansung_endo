@@ -12,7 +12,21 @@ import 'package:flutter_email_sender/flutter_email_sender.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class ResultData {
+  Map<String, int> totalDetailSummaries;
+  List<PatientSummary> summaries;
 
+  ResultData(this.totalDetailSummaries, this.summaries);
+}
+
+class PatientSummary {
+  String name;
+  String patientNumber;
+  String doctor;
+  String summary;
+
+  PatientSummary(this.name, this.patientNumber, this.doctor, this.summary);
+}
 
 class StatisticsPage extends StatefulWidget {
   @override
@@ -23,24 +37,36 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
   String washer = "";
   DateTime selectedDate = DateTime.now();
+
   late String emailAddress = "";
   Map<String, String> scopyFullName = {'039':'7C692K039', '073':'KG391K073', '098':'5C692K098',  '153':'5G391K153', '166':'6C692K166',
     '180':'5G391K180', '219':'1C664K219', '256':'7G391K257', '257':'7G391k257', '259':'7G391K259', '333':'2G348K333', '379':'1C665K379', '390':'2G348K390',
     '405':'2G348K405', '407':'2G348K407', '515':'1C666K515', '694':'5G348K694'};
   Map<String, dynamic> patientAndExamInformation = {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "Room":"", "생일":"", "의사":"", "날짜":"", "시간":"",
-    "위검진_외래" : "검진", "위수면_일반":"수면", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false, "위내시경기계":<String>[], "위세척기계":<String>[], "위내시경세척시간":<String>[],
-    "대장검진_외래":"외래", "대장수면_일반":"수면", "대장조직":"0", "대장절제술":"0", "대장응급":false, "대장내시경기계":<String>[], "대장세척기계":<String>[], "대장내시경세척시간":<String>[],
-    "sig기계":"", "sig조직":"0","sig절제술":"0","sig응급":false,
+    "위검진_외래" : "검진", "위수면_일반":"수면", "위조직":"0", "CLO":false, "위절제술":"0", "위응급":false, "PEG":false,
+    "위내시경":{},
+    "대장검진_외래":"외래", "대장수면_일반":"수면", "대장조직":"0", "대장절제술":"0", "대장응급":false,
+    "대장내시경":{},
+    "sig": {}, "sig조직":"0","sig절제술":"0","sig응급":false,
   };
-  Map<String, String>washingMachinesFullName = {'1호기':"G0423102/1", '2호기':'G0423103/1', '3호기':'G0423104/1','4호기':'G0417099/1','5호기':'I0210032/1'};
+  Map<String, String>washingMachinesFullName = {'1호기':"G0423102", '2호기':'G0423103', '3호기':'G0423104','4호기':'G0417099','5호기':'I0210032'};
   String selectedDoctor = "김신일"; // 기본값 설정
   List<String> doctors = ['이병수', '권순범', '김신일', '한융희', '이기섭'];
-  DateTime startDate = DateTime.now();
-  DateTime endDate = DateTime.now();
+  DateTime now = DateTime.now();
+  DateTime startDateForDocSummary = DateTime.now();
+  DateTime endDateForDocSummary = DateTime.now();
+  DateTime startDateForExamSummary = DateTime.now();
+  DateTime endDateForExamSummary = DateTime.now();
+  DateTime summaryDate = DateTime.now();
+  bool? period = false;
+  bool todayResult = false;
+  bool eachDocSummary = true;
+  bool examSummary = false;
 
   @override
   void initState() {
     super.initState();
+    startDateForDocSummary = DateTime(now.year, now.month, 1);
     _loadEtc();
   }
 
@@ -74,8 +100,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
+
           return AlertDialog(
-            title: Text('메일 보내시겠습니까?'),
+            title: Text('메일 보내기'),
             content: SingleChildScrollView(
               child: ListBody(
                 children: <Widget>[
@@ -84,7 +111,22 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     controller: emailController,
                   ),
                   SizedBox(height: 8), // 간격 추가
-                  Text('날짜를 선택하세요.'),
+                  Row(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Text('날짜를 선택하세요.'),
+                      Checkbox(
+                          //tristate: true,
+                          value: period,
+                          onChanged:(bool? newValue) {
+                            setState(() {
+                              period = newValue;
+                            });
+                          }
+                      )
+                    ],
+                  ),
+
                   TextField(
                     controller: dateController,
                     decoration: InputDecoration(suffixIcon: Icon(Icons.calendar_today)),
@@ -173,108 +215,56 @@ class _StatisticsPageState extends State<StatisticsPage> {
         .get();
 
     for (var doc in querySnapshot.docs) {
-      if ((doc['위내시경기계'] is String) && (doc['대장내시경기계'] is String)){
-        if ((doc['위내시경기계'] !="" && doc['대장내시경기계']=="")) {
+      //print ('${data['이름']} / ${data['이름'].runtimeType}  / ${data['위내시경'].runtimeType} / ${data['대장내시경'].runtimeType} / ${data['sig'].runtimeType}');
+      if (doc['위내시경'].isNotEmpty) {
+        for (var gsfScope in doc['위내시경'].keys.toList()) {
           data = {"등록번호":"", "이름":"", "담당의":"", "내시경고유번호":"", "시간":"", "세척기번호":"", "소독실무자":""};
           data["등록번호"] = doc['환자번호'];
           data['이름'] = doc['이름'];
           data['담당의'] = doc['의사'];
-          data['내시경고유번호'] = scopyFullName[doc['위내시경기계']]!;
-          data['시간'] = doc['위내시경세척시간'];
-          data['세척기번호'] = washingMachinesFullName[doc['위세척기계']];
+          data['내시경고유번호'] = scopyFullName[gsfScope];
+          data['시간'] = doc['위내시경'][gsfScope]['세척시간']?? "";
+          data['세척기번호'] = washingMachinesFullName[doc['위내시경'][gsfScope]['세척기계']] ?? "";
           data['소독실무자'] = washer;
           dataSet.add(data);
-        }
-        if ((doc['위내시경기계'] =="" && doc['대장내시경기계'] !="")) {
-          data = {"등록번호":"", "이름":"", "담당의":"", "내시경고유번호":"", "시간":"", "세척기번호":"", "소독실무자":""};
-          data["등록번호"] = doc['환자번호'];
-          data['이름'] = doc['이름'];
-          data['담당의'] = doc['의사'];
-          data['내시경고유번호'] = scopyFullName[doc['대장내시경기계']];
-          data['시간'] = doc['대장내시경세척시간'];
-          data['세척기번호'] = washingMachinesFullName[doc['대장세척기계']];
-          data['소독실무자'] = washer;
-          dataSet.add(data);
-        }
-        if ((doc['위내시경기계'] !="" && doc['대장내시경기계'] !="")) {
-          if (scopyFullName[doc['위내시경기계']] != null) {
-            data = {"등록번호":"", "이름":"", "담당의":"", "내시경고유번호":"", "시간":"", "세척기번호":"", "소독실무자":""};
-            data["등록번호"] = doc['환자번호'];
-            data['이름'] = doc['이름'];
-            data['담당의'] = doc['의사'];
-            data['소독실무자'] = washer;
-            data['내시경고유번호'] = scopyFullName[doc['위내시경기계']];
-            data['시간'] = doc['위내시경세척시간'];
-            data['세척기번호'] = washingMachinesFullName[doc['위세척기계']];
-            dataSet.add(data);
-          }
-          if(scopyFullName[doc['대장내시경기계']] != null) {
-            data = {"등록번호":"", "이름":"", "담당의":"", "내시경고유번호":"", "시간":"", "세척기번호":"", "소독실무자":""};
-            data["등록번호"] = doc['환자번호'];
-            data['이름'] = doc['이름'];
-            data['담당의'] = doc['의사'];
-            data['소독실무자'] = washer;
-            data['내시경고유번호'] = scopyFullName[doc['대장내시경기계']];
-            data['시간'] = doc['대장내시경세척시간'];
-            data['세척기번호'] = washingMachinesFullName[doc['대장세척기계']];
-            dataSet.add(data);
-          }
         }
       }
-
-      if ((doc['위내시경기계'] is List) && !doc['위내시경기계'].isEmpty && doc['위내시경기계'] != null) {
-        print ('여기를 통과 ${doc.data()}');
-        if (doc['위내시경기계'][0] !="" && doc['위내시경기계'][0] !="없음") {
-          for (var scope in doc['위내시경기계']) {
-            data = {
-              "등록번호": "",
-              "이름": "",
-              "담당의": "",
-              "내시경고유번호": "",
-              "시간": "",
-              "세척기번호": "",
-              "소독실무자": ""
-            };
-            data["등록번호"] = doc['환자번호'];
-            data['이름'] = doc['이름'];
-            data['담당의'] = doc['의사'];
-            int index = doc['위내시경기계'].indexOf(scope);
-            data['내시경고유번호'] = scopyFullName[scope];
-            data['시간'] = doc['위내시경세척시간'][index];
-            data['세척기번호'] = washingMachinesFullName[doc['위세척기계'][index]];
-            data['소독실무자'] = washer;
-            dataSet.add(data);
-          }
+      if (doc['대장내시경'].isNotEmpty) {
+        for (var csfScope in doc['대장내시경'].keys.toList()) {
+          data = {"등록번호":"", "이름":"", "담당의":"", "내시경고유번호":"", "시간":"", "세척기번호":"", "소독실무자":""};
+          data["등록번호"] = doc['환자번호'];
+          data['이름'] = doc['이름'];
+          data['담당의'] = doc['의사'];
+          data['내시경고유번호'] = scopyFullName[csfScope];
+          data['시간'] = doc['대장내시경'][csfScope]['세척시간']?? "";
+          data['세척기번호'] = washingMachinesFullName[doc['대장내시경'][csfScope]['세척기계']]?? "";
+          data['소독실무자'] = washer;
+          dataSet.add(data);
         }
-        try {
-          if ((doc['대장내시경기계'] is List) && !doc['대장내시경기계'].isEmpty && doc['대장내시경기계'] != null) {
-            if (doc['대장내시경기계'][0] != "" && doc['대장내시경기계'][0] != "없음") {
-              for (var scope in doc['대장내시경기계']) {
-                data = {
-                  "등록번호": "",
-                  "이름": "",
-                  "담당의": "",
-                  "내시경고유번호": "",
-                  "시간": "",
-                  "세척기번호": "",
-                  "소독실무자": ""
-                };
-                data["등록번호"] = doc['환자번호'];
-                data['이름'] = doc['이름'];
-                data['담당의'] = doc['의사'];
-                int index = doc['대장내시경기계'].indexOf(scope);
-                data['내시경고유번호'] = scopyFullName[scope];
-                data['시간'] = doc['대장내시경세척시간'][index];
-                data['세척기번호'] = washingMachinesFullName[doc['대장세척기계'][index]];
-                data['소독실무자'] = washer;
-                dataSet.add(data);
-              }
-            }
-          }
-        } catch(e) {
-          print ('여기는 대장:$e');
+      }
+      if (doc['sig'].isNotEmpty) {
+        for (var sigScope in doc['sig'].keys.toList()) {
+          data = {"등록번호":"", "이름":"", "담당의":"", "내시경고유번호":"", "시간":"", "세척기번호":"", "소독실무자":""};
+          data["등록번호"] = doc['환자번호'];
+          data['이름'] = doc['이름'];
+          data['담당의'] = doc['의사'];
+          data['내시경고유번호'] = scopyFullName[sigScope];
+          data['시간'] = doc['sig'][sigScope]['세척시간']?? "";
+          data['세척기번호'] = washingMachinesFullName[doc['sig'][sigScope]['세척기계']]?? "";
+          data['소독실무자'] = washer;
+          dataSet.add(data);
         }
-
+      }
+      if (doc['위내시경'].isEmpty && doc['대장내시경'].isEmpty && doc['sig'].isEmpty) {
+        data = {"등록번호":"", "이름":"", "담당의":"", "내시경고유번호":"", "시간":"", "세척기번호":"", "소독실무자":""};
+        data["등록번호"] = doc['환자번호'];
+        data['이름'] = doc['이름'];
+        data['담당의'] = doc['의사']?? "";
+        data['내시경고유번호'] = "";
+        data['시간'] = "";
+        data['세척기번호'] = "";
+        data['소독실무자'] = washer;
+        dataSet.add(data);
       }
     }
 
@@ -285,7 +275,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
         String colName = "A";        
         for(var key in data.keys.toList()) {
           String cellAdress = colName + row.toString();
-          if (key == '시간') {
+          if (key == '시간'&& data[key] != "") {
+            print ('뭐야이거:${data}');
             worksheet.getRangeByName(cellAdress).setText(data[key]?.split(" ")[1]);
           } else {
             worksheet.getRangeByName(cellAdress).setText(data[key]);
@@ -505,16 +496,34 @@ class _StatisticsPageState extends State<StatisticsPage> {
   Future<void> _selectDateForDoc(BuildContext context, bool isStart) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStart ? startDate : endDate,
+      initialDate: isStart ? startDateForDocSummary : endDateForDocSummary,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
     if (picked != null) {
       setState(() {
         if (isStart) {
-          startDate = picked;
+          startDateForDocSummary = picked;
         } else {
-          endDate = picked;
+          endDateForDocSummary = picked;
+        }
+      });
+    }
+  }
+
+  Future<void> _selectDateForExam(BuildContext context, bool isStart) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isStart ? startDateForExamSummary : endDateForExamSummary,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          startDateForExamSummary = picked;
+        } else {
+          endDateForExamSummary = picked;
         }
       });
     }
@@ -554,7 +563,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
         return AlertDialog(
           title: Center(
               child: Text(
-                  "조회 결과($doctor)",
+                  "조회 결과 ($doctor)",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.indigo,
@@ -602,7 +611,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                 DataRow(
                   cells: <DataCell>[
                     DataCell(Text('용종 발견률')),
-                    DataCell(Text('$PDR')),
+                    DataCell(Text('$PDR%')),
                   ],
                 ),
                 DataRow(
@@ -639,6 +648,298 @@ class _StatisticsPageState extends State<StatisticsPage> {
       },
     );
   }
+
+  Widget buildSummaryWidget(String startDate, String endDate) {
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('patients')
+          .where('날짜', isGreaterThanOrEqualTo: startDate)
+          .where('날짜', isLessThanOrEqualTo : endDate)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Text("데이터를 불러오는 데 실패했습니다.");
+        }
+        if (snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Text("오늘의 환자 기록이 없습니다.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo),),
+          );
+        }
+
+        final result = processDocuments(snapshot.data!.docs);
+
+        return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: [
+                    Table(
+                      border: TableBorder(
+                        top: BorderSide(width: 2.0), // 상단 테두리 두껍게
+                        bottom: BorderSide(width: 2.0), // 하단 테두리 두껍게
+                        left: BorderSide(width: 2.0), // 좌측 테두리 두껍게
+                        right: BorderSide(width: 2.0), // 우측 테두리 두껍게
+                        horizontalInside: BorderSide(width: 1.0), // 행 사이의 테두리
+                        verticalInside: BorderSide(width: 1.0), // 열 사이의 테두리
+                      ),
+                      // columnWidths: const <int, TableColumnWidth>{
+                      //   0: FixedColumnWidth(100.0), // 고정된 열 너비
+                      //   1: FixedColumnWidth(60.0),
+                      //   2: FixedColumnWidth(60.0),
+                      // },
+                      children: [
+                        TableRow(
+                          children: [
+                            Text('', textAlign: TextAlign.center),
+                            Text('검진', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                            Text('외래', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                            Text('총합수', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                          ],
+                        ),
+                        TableRow(
+                          children: [
+                            Text('위내시경', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text('${result.totalDetailSummaries['gsf_gumjin']}', textAlign: TextAlign.center),
+                            Text('${result.totalDetailSummaries['gsf_outpatient']}', textAlign: TextAlign.center),
+                            Text(
+                                '${result.totalDetailSummaries['gsf_gumjin']! + result.totalDetailSummaries['gsf_outpatient']!}',
+                                textAlign: TextAlign.center
+                            ),
+                          ],
+                        ),
+                        TableRow(
+                          children: [
+                            Text('대장내시경', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                            Text('${result.totalDetailSummaries['csf_gumjin']}', textAlign: TextAlign.center),
+                            Text('${result.totalDetailSummaries['csf_outpatient']}', textAlign: TextAlign.center),
+                            Text(
+                                '${result.totalDetailSummaries['csf_gumjin']! + result.totalDetailSummaries['csf_outpatient']!}',
+                                textAlign: TextAlign.center
+                            ),
+                          ],
+                        ),
+                        TableRow(
+                          children: [
+                            Text('Sig', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                            Text('', textAlign: TextAlign.center),
+                            Text('${result.totalDetailSummaries['sig']}', textAlign: TextAlign.center),
+                            Text('${result.totalDetailSummaries['sig']}', textAlign: TextAlign.center),
+                          ],
+                        ),
+                        TableRow(
+                          children: [
+                            Text('총합수', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                            Text(
+                                '${result.totalDetailSummaries['gsf_gumjin']! + result.totalDetailSummaries['csf_gumjin']!}',
+                                textAlign: TextAlign.center
+                            ),
+                            Text(
+                                '${result.totalDetailSummaries['gsf_outpatient']! + result.totalDetailSummaries['csf_outpatient']!}',
+                                textAlign: TextAlign.center
+                            ),
+                            Text(
+                                '${result.totalDetailSummaries['gsf_outpatient']! + result.totalDetailSummaries['csf_outpatient']! +
+                                    result.totalDetailSummaries['gsf_gumjin']! + result.totalDetailSummaries['csf_gumjin']!
+                                }',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 5,),
+                    Table(
+                      border: TableBorder(
+                        top: BorderSide(width: 2.0), // 상단 테두리 두껍게
+                        bottom: BorderSide(width: 2.0), // 하단 테두리 두껍게
+                        left: BorderSide(width: 2.0), // 좌측 테두리 두껍게
+                        right: BorderSide(width: 2.0), // 우측 테두리 두껍게
+                        horizontalInside: BorderSide(width: 1.0), // 행 사이의 테두리
+                        verticalInside: BorderSide(width: 1.0), // 열 사이의 테두리
+                      ),
+                      children: [
+                        TableRow(
+                          children: [
+                            Text(""),
+                            Text('조직검사', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                            Text('절제술', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                            Text('CLO', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                          ]
+                        ),
+                        TableRow(
+                            children: [
+                              Text("위내시경", style: TextStyle(fontWeight: FontWeight.bold),),
+                              Text('${result.totalDetailSummaries['gsf_Bx']}', textAlign: TextAlign.center,),
+                              Text('${result.totalDetailSummaries['gsf_polypectomy']}', textAlign: TextAlign.center,),
+                              Text('${result.totalDetailSummaries['CLO']}', textAlign: TextAlign.center,),
+                            ]
+                        ),
+                        TableRow(
+                            children: [
+                              Text("대장내시경",style: TextStyle(fontWeight: FontWeight.bold), ),
+                              Text('${result.totalDetailSummaries['csf_Bx']}', textAlign: TextAlign.center,),
+                              Text('${result.totalDetailSummaries['csf_polypectomy']}', textAlign: TextAlign.center,),
+                              Text('', textAlign: TextAlign.center,),
+                            ]
+                        ),
+                      ],
+                    )
+                  ],
+                )
+                ,
+              ),
+              SizedBox(
+                height: 300,
+                child: ListView.builder(
+                  itemCount: result.summaries.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text('${result.summaries[index].name}(${result.summaries[index].patientNumber}) - ${result.summaries[index].doctor}'),
+                      subtitle: Text(result.summaries[index].summary),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+      },
+    );
+  }
+
+
+
+  ResultData processDocuments(List<QueryDocumentSnapshot> docs) {
+    List<PatientSummary> summaries = [];
+    Map<String, int> totalDetailSummaries = {"patient":0, "total_gumjin":0,  "total_outpatient":0, "total_sleep":0, "total_awake":0,
+      "patient":0, "gsf_gumjin":0, "gsf_outpatient":0, "gsf_sleep":0, "gsf_awake":0, "csf_gumjin":0,
+      "csf_outpatient":0, "csf_sleep":0, "csf_awake":0, "gsf_Bx":0, "gsf_polypectomy":0, "CLO":0, "csf_Bx":0, "csf_polypectomy":0,
+      "sig":0, "sig_Bx":0, "sig_polypectomy":0,
+    };
+
+    for (var doc in docs) {
+      var summaryAndDetailSummary = createSummaryFromDoc(doc);
+      String summary = summaryAndDetailSummary[0];
+      Map<String, int> detailSummary = summaryAndDetailSummary[1];
+
+      summaries.add(PatientSummary(doc['이름'], doc['환자번호'], doc['의사'], summary));
+
+      // Update totals
+      detailSummary.forEach((key, value) {
+        if (totalDetailSummaries.containsKey(key)) {
+          totalDetailSummaries.update(key, (existingValue) => existingValue + value);
+        }
+      });
+    }
+    // totalDetailSummaries['total_gumjin'] = totalDetailSummaries['gsf_gumjin']! + totalDetailSummaries['csf_gumjin']!;
+    // totalDetailSummaries['total_outpatient'] = totalDetailSummaries['gsf_outpatient']! + totalDetailSummaries['csf_outpatient']! + totalDetailSummaries['sig']!;
+    // totalDetailSummaries['totalPatient'] =  totalDetailSummaries['total_gumjin']! + totalDetailSummaries['total_outpatient']!;
+
+    print ('zzzz:$totalDetailSummaries');
+    return ResultData(totalDetailSummaries, summaries);
+
+  }
+
+  List createSummaryFromDoc(DocumentSnapshot doc) {
+    String summary = "";
+    Map<String, int> detailSummary = {"patient":0, "gsf_gumjin":0, "gsf_outpatient":0, "gsf_sleep":0, "gsf_awake":0, "csf_gumjin":0,
+      "csf_outpatient":0, "csf_sleep":0, "csf_awake":0, "gsf_Bx":0, "gsf_polypectomy":0, "CLO":0, "csf_Bx":0, "csf_polypectomy":0,
+      "sig":0, "sig_Bx":0, "sig_polypectomy":0,
+    };
+    if (doc['이름'] !="기기세척") {
+      detailSummary['patient'] =1;
+    }
+    if (doc['위내시경'].isNotEmpty) {
+      summary = summary+'위('+doc['위검진_외래'] + " "+doc['위수면_일반']+", ";
+      if (doc['위검진_외래'] == '검진') {
+        detailSummary["gsf_gumjin"] =1;
+      } else if (doc['위검진_외래'] == '외래') {
+        detailSummary["gsf_outpatient"] =1;
+      }
+      if (doc['위수면_일반'] == '수면') {
+        detailSummary["gsf_sleep"] =1;
+      } else if (doc['위수면_일반'] == '일반') {
+        detailSummary["gsf_awake"] =1;
+      }
+      for (var scope in doc['위내시경'].keys.toList()) {
+        summary += scope+" ";
+      }
+      if(doc['위조직'] != "0") {
+        summary += ' ,Bx:'+doc['위조직'];
+        detailSummary["gsf_Bx"] = int.parse(doc['위조직']);
+      }
+      if(doc['위절제술'] != "0") {
+        summary += ' ,용종절제술:'+doc['위절제술'];
+        detailSummary["gsf_polypectomy"] = int.parse(doc['위절제술']);
+      }
+      if(doc['CLO']) {
+        summary += ' ,CLO, ';
+        detailSummary["CLO"] = 1;
+      }
+      summary+=')';
+    }
+    if (doc['대장내시경'].isNotEmpty) {
+      if(doc['위내시경'].isNotEmpty) {
+        summary += '//';
+      }
+      summary = summary+'대장('+doc['대장검진_외래'] + " "+doc['대장수면_일반']+", ";
+      if (doc['대장검진_외래'] == "검진") {
+        detailSummary["csf_gumjin"] =1;
+      } else if (doc['대장검진_외래'] == "외래") {
+        detailSummary["csf_outpatient"] =1;
+      }
+      if (doc['대장수면_일반'] == '수면') {
+        detailSummary["csf_sleep"] =1;
+      } else if (doc['대장수면_일반'] == '일반') {
+        detailSummary["csf_awake"] =1;
+      }
+      for (var scope in doc['대장내시경'].keys.toList()) {
+        summary += scope+" ";
+      }
+      if(doc['대장조직'] != "0") {
+        summary += ' ,Bx:'+doc['대장조직'];
+        detailSummary["csf_Bx"] = int.parse(doc['대장조직']);
+      }
+      if(doc['대장절제술'] != "0") {
+        summary += ' ,용종절제술:'+doc['대장절제술'];
+        detailSummary["csf_polypectomy"] = int.parse(doc['대장절제술']);
+      }
+      summary += ')';
+    }
+    if (doc['sig'].isNotEmpty) {
+      if (doc['위내시경'].isNotEmpty) {
+        summary += '//';
+      } else if (doc['대장내시경'].isNotEmpty) {
+        summary += '//';
+      }
+      detailSummary["sig"] = 1;
+      summary += 'sig( ';
+      for (var scope in doc['sig'].keys.toList()) {
+        summary += scope+" ";
+      }
+      if(doc['sig조직'] != "0") {
+        summary += 'Bx:'+doc['sig조직']+", ";
+        detailSummary["sig_Bx"] = int.parse((doc['sig조직']));
+      }
+      if(doc['sig절제술'] != "0") {
+        summary += '용종절제술:'+doc['sig절제술'] + ", ";
+        detailSummary["sig_polypectomy"] = int.parse(doc['sig절제술']);
+      }
+      summary += ")";
+    }
+
+    return [summary, detailSummary];
+  }
+
 
 
 
@@ -710,36 +1011,76 @@ class _StatisticsPageState extends State<StatisticsPage> {
             SizedBox(height: 10,),
             Divider(color: Colors.indigo,),
             SizedBox(height: 10,),
-            Center(
-              child: Text(
-                  '과장님별 통계',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: Colors.blueGrey,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(2.0, 2.0),
-                        blurRadius: 2.0,
-                        color: Colors.blueGrey.withOpacity(0.5),
-                      ),
-                    ],
+            Row(
+              children: [
+                SizedBox(width: 5,),
+                Text(
+                    '과장님별 통계',
+                    textAlign: TextAlign.start,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      color: Colors.blueGrey,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(2.0, 2.0),
+                          blurRadius: 2.0,
+                          color: Colors.blueGrey.withOpacity(0.5),
+                        ),
+                      ],
 
-                  ),
-              ),
+                    ),
+                ),
+                Checkbox(
+                  tristate:false,
+                  value: eachDocSummary,
+                  onChanged: (value) {
+                    setState(() {
+                      eachDocSummary = value!;
+                    });
+                  },
+                ),
+              ],
             ),
-            Center(
-              child: Row(
+            eachDocSummary? Row(
                 children: [
-                  SizedBox(width: 10,),
+                  //SizedBox(width: 1,),
                   TextButton(
                     onPressed: () => _selectDateForDoc(context, true), // true for start date
-                    child: Text(
-                        '시작: ${DateFormat('yyyy-MM-dd').format(startDate)}',
-                        style: TextStyle(
-                          fontSize: 16,
+                    child: Row(
+                      children: [
+                        Text(
+                            'From: ',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                         ),
+                        Text(DateFormat('yy-MM-dd').format(startDateForDocSummary)),
+                      ],
+                    ),
+                    style: ButtonStyle(
+                      padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 8.0)), // 버튼 내부 패딩 조절
+                      // 기타 스타일 설정...
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _selectDateForDoc(context, false), // false for end date
+                    child: Row(
+                      children: [
+                        Text(
+                          'To: ',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(DateFormat('yy-MM-dd').format(endDateForDocSummary)),
+                      ],
+                    ),
+                    style: ButtonStyle(
+                      padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 5.0)), // 버튼 내부 패딩 조절
+                      // 기타 스타일 설정...
                     ),
                   ),
                   SizedBox(width: 10,),
@@ -763,43 +1104,105 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     }).toList(),
                   ),
                   SizedBox(width: 10,),
-                  TextButton(
-                    onPressed: () => _selectDateForDoc(context, false), // false for end date
+                  ElevatedButton(
+                    onPressed: () {
+                      fetchDataByDoctorAndDateRange(selectedDoctor, startDateForDocSummary, endDateForDocSummary);
+                    },
                     child: Text(
-                        '종료: ${DateFormat('yyyy-MM-dd').format(endDate)}',
-                        style: TextStyle(
-                          fontSize: 16,
+                      '확인',
+                      style: TextStyle(
+                        fontSize: 15,
+                      ),
+                    ),
+                    style: ButtonStyle(
+                      backgroundColor: MaterialStateProperty.all(const Color(0xFFb3cde0)),
+                      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
                         ),
-                    ),
-
-                  )
-                ],
-              ),
-            ),
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  fetchDataByDoctorAndDateRange(selectedDoctor, startDate, endDate);
-                },
-                child: Text(
-                    '확인',
-                    style: TextStyle(
-                      fontSize: 15,
-                    ),
-                ),
-                style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all(const Color(0xFFb3cde0)),
-                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
+                      ),
+                      padding: MaterialStateProperty.all(EdgeInsets.all(0)),
+                      //fixedSize: MaterialStateProperty.all(Size.fromHeight(30)),
                     ),
                   ),
-                  fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
-                ),
-              ),
-            ),
+
+                ],
+              )
+             : SizedBox(),
             SizedBox(height: 10,),
-            Divider(color: Colors.indigo,),
+            //Divider(color: Colors.indigo,),
+            Row(
+              children: [
+                SizedBox(width: 5,),
+                Text(
+                  '검사 요약',
+                  textAlign: TextAlign.start,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: Colors.blueGrey,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(2.0, 2.0),
+                        blurRadius: 2.0,
+                        color: Colors.blueGrey.withOpacity(0.5),
+                      ),
+                    ],
+
+                  ),
+                ),
+                Checkbox(
+                  tristate:false,
+                  value: examSummary,
+                  onChanged: (value) {
+                    setState(() {
+                      examSummary = value!;
+                    });
+                  },
+                ),
+                examSummary? TextButton(
+                  onPressed: () => _selectDateForExam(context, true), // true for start date
+                  child: Row(
+                    children: [
+                      Text(
+                        'From: ',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(DateFormat('yy-MM-dd').format(startDateForExamSummary)),
+                    ],
+                  ),
+                  style: ButtonStyle(
+                    padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 8.0)), // 버튼 내부 패딩 조절
+                    // 기타 스타일 설정...
+                  ),
+                ) : SizedBox(),
+                examSummary? TextButton(
+                  onPressed: () => _selectDateForExam(context, false), // false for end date
+                  child: Row(
+                    children: [
+                      Text(
+                        'To: ',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(DateFormat('yy-MM-dd').format(endDateForExamSummary)),
+                    ],
+                  ),
+                  style: ButtonStyle(
+                    padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 5.0)), // 버튼 내부 패딩 조절
+                    // 기타 스타일 설정...
+                  ),
+                ) : SizedBox(),
+              ],
+            ),
+            examSummary? buildSummaryWidget(
+                DateFormat('yyyy-MM-dd').format(startDateForExamSummary), DateFormat('yyyy-MM-dd').format(endDateForExamSummary))
+                : SizedBox(),
             // ElevatedButton(
             //     onPressed: () => makingExcelFileEndoscopyWahserDailyReport(DateFormat('yyyy-MM-dd').format(selectedDate)),
             //     child: Text('엑셀')
@@ -807,49 +1210,17 @@ class _StatisticsPageState extends State<StatisticsPage> {
             // ElevatedButton(
             //     onPressed: () async {
             //       final firestore = FirebaseFirestore.instance;
-            //       final id = "ab074022-2f72-45cd-b14c-1dcbc284866a";
+            //       final id = "da1407ee-2e4f-4a97-8d1e-aed116460432";
             //       QuerySnapshot querySnapshot = await firestore.collection('patients').get();
+            //       //QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo: id).get();
             //       for (var doc in querySnapshot.docs) {
             //         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-            //         if (data['위내시경기계'] is String) {
-            //           String tempData = data['위내시경기계'];
-            //           data['위내시경기계'] = [];
-            //           data['위내시경기계'].add(tempData);
+            //         if (data['날짜'].length >10) {
+            //           print (data['이름']);
             //         }
-            //         if (data['위세척기계'] is String) {
-            //           String tempData = data['위세척기계'];
-            //           data['위세척기계'] = [];
-            //           data['위세척기계'].add(tempData);
-            //         }
-            //         if (data['위내시경세척시간'] is String) {
-            //           String tempData = data['위내시경세척시간'];
-            //           data['위내시경세척시간'] = [];
-            //           data['위내시경세척시간'].add(tempData);
-            //         }
-            //         if (data['대장내시경기계'] is String) {
-            //           String tempData = data['대장내시경기계'];
-            //           data['대장내시경기계'] = [];
-            //           data['대장내시경기계'].add(tempData);
-            //         }
-            //         if (data['대장세척기계'] is String) {
-            //           String tempData = data['대장세척기계'];
-            //           data['대장세척기계'] = [];
-            //           data['대장세척기계'].add(tempData);
-            //         }
-            //         if (data['대장내시경세척시간'] is String) {
-            //           String tempData = data['대장내시경세척시간'];
-            //           data['대장내시경세척시간'] = [];
-            //           data['대장내시경세척시간'].add(tempData);
-            //         }
-            //         data['sig세척기계']= "";
-            //         data['sig세척시간']="";
-            //
-            //         await firestore.collection('patients').doc(doc.id).update(data);
             //       }
-            //
-            //
             //     },
-            //     child: Text('데이터변환')
+            //     child: Text('데이터찾기')
             // )
 
           ],

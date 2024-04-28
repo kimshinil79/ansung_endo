@@ -7,7 +7,7 @@ class machineButton extends StatefulWidget {
   final int selectedIndexMachine;
   final Function(int, String) onPressedMachine;
 
-  machineButton({
+    machineButton({
     Key? key,
     required this.index,
     required this.machineName,

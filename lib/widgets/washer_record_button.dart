@@ -20,21 +20,35 @@ class WasherRecordButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formattedDate = DateFormat('yy/MM/dd').format(DateTime.parse(lastChangeDate));
+    final formattedDate = DateFormat('MM/dd').format(DateTime.parse(lastChangeDate));
 
     return ElevatedButton(
       onPressed: onPressed,
       child: Column(
         children: <Widget>[
-          Text('$machineName($scopyCount)'),
+          Text(
+              '$machineName',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+          ),
+          Text(
+              '${scopyCount.toString()}회',
+            style: TextStyle(
+              //fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),),
           Text(formattedDate),
         ],
       ),
       style: ButtonStyle(
+        backgroundColor: MaterialStateProperty.all(Colors.teal.withOpacity(0.5)),
         padding: MaterialStateProperty.all<EdgeInsets>(EdgeInsets.zero),
         shape: MaterialStateProperty.all<RoundedRectangleBorder>(
           RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero, // 모서리를 직선으로 설정
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: const Color(0xFF007F73), width: 2.0),// 모서리를 직선으로 설정
           ),
         ),
       ),
