@@ -1772,7 +1772,24 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
       for (TextLine line in block.lines) {
         scannedText += "${line.text}\n";
         if (line.text.contains("환자번호")) {
-          patientInformation['환자번호'] = extractInfo(line.text, ": ")[1];
+          String patientID = extractInfo(line.text, ": ")[1];
+          String finalPatientID = "";
+          List<String> charList = patientID.split("");
+
+          for (int i=0;i<patientID.length;i++) {
+            if (patientID[i] == 'O') {
+              charList[i] = '0';
+            }
+            if (patientID[i] == " ") {
+              charList[i] = '';
+            }
+          }
+          if (patientID[1] == "B") {
+            charList[1] = "8";
+          }
+
+          finalPatientID = charList.join('');
+          patientInformation['환자번호'] = finalPatientID;
         }
         if(line.text.contains("이름")) {
           patientInformation["이름"] = extractInfo(line.text, ": ")[1];

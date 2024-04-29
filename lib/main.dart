@@ -53,7 +53,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           children: [
             Expanded(
               child: Text(
-                  '안성 성모 내시경센터 v1.4',
+                  '안성 성모 내시경센터 v1.5',
                   style: TextStyle(
                     fontSize: 27,
                     fontWeight: FontWeight.bold,

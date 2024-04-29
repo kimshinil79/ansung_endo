@@ -91,6 +91,7 @@ class _WashingRoomState extends State<WashingRoom> {
       } else {
         _isPressedMachine = !_isPressedMachine;
       }
+      print ('함수 자체 안에서 _isPressedMachine:$_isPressedMachine');
     });
   }
 
@@ -696,7 +697,7 @@ class _WashingRoomState extends State<WashingRoom> {
       selectedPatientNameAndScopyName = '환자';
       noPatient = false;
       _isPressedMachine = false;
-      selectedScopyName = "...";
+      selectedScopyName = "기기세척";
     });
 
 
@@ -1492,23 +1493,23 @@ class _WashingRoomState extends State<WashingRoom> {
       body: SingleChildScrollView(
         child: Column(
           children: <Widget>[
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal, // 가로 방향으로 스크롤 가능하게 설정
-              child: Row(
-                children: [
-                  machineButton(index: 1, machineName: '1호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-                  SizedBox(width: 5,),
-                  machineButton(index: 2, machineName: '2호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-                  SizedBox(width: 5,),
-                  machineButton(index: 3, machineName: '3호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-                  SizedBox(width: 5,),
-                  machineButton(index: 4, machineName: '4호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-                  SizedBox(width: 5,),
-                  machineButton(index: 5, machineName: '5호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
-                ],
-              ),
-            ),
-            SizedBox(height: 10,),
+            // SingleChildScrollView(
+            //   scrollDirection: Axis.horizontal, // 가로 방향으로 스크롤 가능하게 설정
+            //   child: Row(
+            //     children: [
+            //       machineButton(index: 1, machineName: '1호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+            //       SizedBox(width: 5,),
+            //       machineButton(index: 2, machineName: '2호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+            //       SizedBox(width: 5,),
+            //       machineButton(index: 3, machineName: '3호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+            //       SizedBox(width: 5,),
+            //       machineButton(index: 4, machineName: '4호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
+            //       SizedBox(width: 5,),
+            //       machineButton(index: 5, machineName: '5호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
+            //     ],
+            //   ),
+            // ),
+            // SizedBox(height: 10,),
             Row(
               children: [
                 SizedBox(width: 5,),
@@ -1568,11 +1569,11 @@ class _WashingRoomState extends State<WashingRoom> {
                     },
                     onLongPress: () {
                       setState(() {
-                        selectedScopyName = "...";
+                        selectedScopyName = "기기세척";
                       });
                     },
                     child: Text(
-                      endoscopySelection ? selectedScopyName : '...',
+                      endoscopySelection ? selectedScopyName : '기기세척',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -1591,10 +1592,44 @@ class _WashingRoomState extends State<WashingRoom> {
                   ),
                 ),
                 SizedBox(width: 5,),
+                Expanded(
+                  flex:2,
+                  child:ElevatedButton(
+                    onPressed: () => _selectDate(context),
+                    onLongPress: () {
+                      setState(() {
+                        selectedDate = DateTime.now();
+                        totalEndoscopyListAtOtherDay = false;
+                        displayTodayOrNot.forEach((key, value) {
+                          displayTodayOrNot[key] = true;
+                        });
+                      });
+                    },
+                    child: Text(
+                      DateFormat('yy/MM/dd').format(selectedDate) == DateFormat('yy/MM/dd').format(DateTime.now())  ? '오늘' :
+                      DateFormat('yy/MM/dd').format(selectedDate) ,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15
+                      ),
+                    ),
+                    style: ButtonStyle(
+                      backgroundColor: MaterialStateProperty.all(const Color(0x807863b0)),
+                      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
+                        ),
+                      ),
+                      fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 5,),
               ],
             ),
             SizedBox(height: 10,),
-            Row(
+            _isPressedMachine && (selectedPatientNameAndScopyName != "환자" || endoscopySelection)? Row(
               children: <Widget>[
                 SizedBox(width: 5,),
                 Expanded(
@@ -1621,59 +1656,11 @@ class _WashingRoomState extends State<WashingRoom> {
                   ),
                 ),
                 SizedBox(width: 10,),
-                Expanded(
-                    flex:2,
-                    child:ElevatedButton(
-                      onPressed: () => _selectDate(context),
-                      onLongPress: () {
-                        setState(() {
-                          selectedDate = DateTime.now();
-                          totalEndoscopyListAtOtherDay = false;
-                          displayTodayOrNot.forEach((key, value) {
-                            displayTodayOrNot[key] = true;
-                          });
-                        });
-                      },
-                      child: Text(
-                        DateFormat('yy/MM/dd').format(selectedDate) == DateFormat('yy/MM/dd').format(DateTime.now())  ? '오늘' :
-                        DateFormat('yy/MM/dd').format(selectedDate) ,
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15
-                        ),
-                      ),
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.all(const Color(0x807863b0)),
-                        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
-                          ),
-                        ),
-                        fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
-                      ),
-                    ),
-                ),
-                SizedBox(width: 5,),
-              ],
-            ),
 
-            // Row(
-            //   children: <Widget> [
-            //
-            //     ElevatedButton(
-            //         onPressed: () {
-            //           setState(() {
-            //             displayTodayOrNot.forEach((key, value) {
-            //               displayTodayOrNot[key] = true;
-            //             });
-            //           });
-            //         },
-            //         child: Text('오늘 표시')
-            //     ),
-            //
-            //   ],
-            // ),
+                SizedBox(width: 10,),
+              ],
+            ) : SizedBox(),
+
             SizedBox(height: 5,),
             const Divider(
               color: Colors.black,
@@ -1687,9 +1674,13 @@ class _WashingRoomState extends State<WashingRoom> {
                   children: [
                     WasherRecordButton(
                       machineName: '1호기',
+                      index: 1,
+                      selectedIndexMachine: _selectedIndexMachine,
                       //scopyCount: machineScopyTime['1호기']?.length ?? 0, // Null Safety 처리
                       scopyCount: displayTodayOrNot['1호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('1호기', machineWasherChange['1호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('1호기', machineWasherChange['1호기']![selectedIndexOfWasherChangeList['1호기']!]).length,
-                      onPressed: () => _showWasherRecord(context, '1호기'),
+                      onLongPressed: () => _showWasherRecord(context, '1호기'),
+                      onPressedMachine: _onPressedMachine,
+                      isPressedMachine: _isPressedMachine,
                       // 날짜가 없는 경우 기본값 사용
                       lastChangeDate: displayTodayOrNot['1호기']!? machineWasherChange['1호기']!.last : machineWasherChange['1호기']![selectedIndexOfWasherChangeList['1호기']!],
 
@@ -1714,8 +1705,12 @@ class _WashingRoomState extends State<WashingRoom> {
                   children: [
                     WasherRecordButton(
                       machineName: '2호기',
+                      index: 2,
+                      selectedIndexMachine: _selectedIndexMachine,
                       scopyCount:displayTodayOrNot['2호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('2호기', machineWasherChange['2호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('2호기', machineWasherChange['2호기']![selectedIndexOfWasherChangeList['2호기']!]).length, // Null Safety 처리
-                      onPressed: () => _showWasherRecord(context, '2호기'),
+                      onLongPressed: () => _showWasherRecord(context, '2호기'),
+                      onPressedMachine: _onPressedMachine,
+                      isPressedMachine: _isPressedMachine,
                       // 날짜가 없는 경우 기본값 사용
                       lastChangeDate: displayTodayOrNot['2호기']!? machineWasherChange['2호기']!.last : machineWasherChange['2호기']![selectedIndexOfWasherChangeList['2호기']!],
 
@@ -1740,8 +1735,12 @@ class _WashingRoomState extends State<WashingRoom> {
                   children: [
                     WasherRecordButton(
                       machineName: '3호기',
+                      index: 3,
+                      selectedIndexMachine: _selectedIndexMachine,
                       scopyCount: displayTodayOrNot['3호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('3호기', machineWasherChange['3호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('3호기', machineWasherChange['3호기']![selectedIndexOfWasherChangeList['3호기']!]).length, // Null Safety 처리
-                      onPressed: () => _showWasherRecord(context, '3호기'),
+                      onLongPressed: () => _showWasherRecord(context, '3호기'),
+                      onPressedMachine: _onPressedMachine,
+                      isPressedMachine: _isPressedMachine,
                       // 날짜가 없는 경우 기본값 사용
                       lastChangeDate: displayTodayOrNot['3호기']!? machineWasherChange['3호기']!.last : machineWasherChange['3호기']![selectedIndexOfWasherChangeList['3호기']!],
 
@@ -1766,8 +1765,12 @@ class _WashingRoomState extends State<WashingRoom> {
                   children: [
                     WasherRecordButton(
                       machineName: '4호기',
+                      index: 4,
+                      selectedIndexMachine: _selectedIndexMachine,
                       scopyCount: displayTodayOrNot['4호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('4호기', machineWasherChange['4호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('4호기', machineWasherChange['4호기']![selectedIndexOfWasherChangeList['4호기']!]).length ?? 0, // Null Safety 처리
-                      onPressed: () => _showWasherRecord(context, '4호기'),
+                      onLongPressed: () => _showWasherRecord(context, '4호기'),
+                      onPressedMachine: _onPressedMachine,
+                      isPressedMachine: _isPressedMachine,
                       // 날짜가 없는 경우 기본값 사용
                       lastChangeDate: displayTodayOrNot['4호기']!? machineWasherChange['4호기']!.last :  machineWasherChange['4호기']![selectedIndexOfWasherChangeList['4호기']!] ,
 
@@ -1792,8 +1795,12 @@ class _WashingRoomState extends State<WashingRoom> {
                   children: [
                     WasherRecordButton(
                       machineName: '5호기',
+                      index: 5,
+                      selectedIndexMachine: _selectedIndexMachine,
                       scopyCount:  displayTodayOrNot['5호기']!? listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('5호기', machineWasherChange['5호기']!.last).length : listOfEndoscopyForEachMachineAfterSpecificWasherChangeDate('5호기', machineWasherChange['5호기']![selectedIndexOfWasherChangeList['5호기']!]).length ?? 0,// Null Safety 처리
-                      onPressed: () => _showWasherRecord(context, '5호기'),
+                      onLongPressed: () => _showWasherRecord(context, '5호기'),
+                      onPressedMachine: _onPressedMachine,
+                      isPressedMachine: _isPressedMachine,
                       // 날짜가 없는 경우 기본값 사용
                       lastChangeDate: displayTodayOrNot['5호기']!? machineWasherChange['5호기']!.last : machineWasherChange['5호기']![selectedIndexOfWasherChangeList['5호기']!],
 

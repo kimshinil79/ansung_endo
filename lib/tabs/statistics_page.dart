@@ -19,6 +19,7 @@ class ResultData {
   ResultData(this.totalDetailSummaries, this.summaries);
 }
 
+
 class PatientSummary {
   String name;
   String patientNumber;
@@ -57,11 +58,14 @@ class _StatisticsPageState extends State<StatisticsPage> {
   DateTime endDateForDocSummary = DateTime.now();
   DateTime startDateForExamSummary = DateTime.now();
   DateTime endDateForExamSummary = DateTime.now();
+  DateTime startDateForRoomSummary = DateTime.now();
+  DateTime endDateForRoomSummary = DateTime.now();
   DateTime summaryDate = DateTime.now();
   bool? period = false;
   bool todayResult = false;
   bool eachDocSummary = true;
   bool examSummary = false;
+  bool roomSummary = false;
 
   @override
   void initState() {
@@ -529,6 +533,24 @@ class _StatisticsPageState extends State<StatisticsPage> {
     }
   }
 
+  Future<void> _selectDateForRoom(BuildContext context, bool isStart) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isStart ? startDateForExamSummary : endDateForExamSummary,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          startDateForRoomSummary = picked;
+        } else {
+          endDateForRoomSummary = picked;
+        }
+      });
+    }
+  }
+
   void fetchDataByDoctorAndDateRange(String doctor, DateTime start, DateTime end) async {
     FirebaseFirestore firestore = FirebaseFirestore.instance;
     String startString = DateFormat('yyyy-MM-dd').format(start);
@@ -649,6 +671,103 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
+  Widget buildRoomSummaryWidget(String startDate, String endDate) {
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('patients')
+          .where('날짜', isGreaterThanOrEqualTo: startDate)
+          .where('날짜', isLessThanOrEqualTo : endDate)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Text("데이터를 불러오는 데 실패했습니다.");
+        }
+        if (snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Text("환자 기록이 없습니다.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo),),
+          );
+        }
+
+        Map<String, Map<String, Map<String, dynamic>>> summaryForEachDate= {};
+
+        for(var doc in snapshot.data!.docs) {
+          var data = doc.data() as Map<String, dynamic>;
+          String date = data['날짜'];
+          String room = data['Room'];
+          if (summaryForEachDate[date] == null) {
+            summaryForEachDate[date] = {'1':{'위내시경':{}, '대장내시경':{}}, '2':{'위내시경':{}, '대장내시경':{}},'3':{'위내시경':{}, '대장내시경':{}}};
+
+          }
+        }
+
+        //final result = processDocumentsForRoom(snapshot.data!.docs);
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  Table(
+                    border: TableBorder(
+                      top: BorderSide(width: 2.0), // 상단 테두리 두껍게
+                      bottom: BorderSide(width: 2.0), // 하단 테두리 두껍게
+                      left: BorderSide(width: 2.0), // 좌측 테두리 두껍게
+                      right: BorderSide(width: 2.0), // 우측 테두리 두껍게
+                      horizontalInside: BorderSide(width: 1.0), // 행 사이의 테두리
+                      verticalInside: BorderSide(width: 1.0), // 열 사이의 테두리
+                    ),
+
+                    children: [
+                      TableRow(
+                        children: [
+                          Text('', textAlign: TextAlign.center),
+                          Text('검진', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                          Text('외래', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                          Text('총합수', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
+                        ],
+                      ),
+
+                    ],
+                  ),
+                ],
+              )
+              ,
+            ),
+            // SizedBox(
+            //   height: 300,
+            //   child: ListView.builder(
+            //     itemCount: result.summaries.length,
+            //     itemBuilder: (context, index) {
+            //       return ListTile(
+            //         title: Text('${result.summaries[index].name}(${result.summaries[index].patientNumber}) - ${result.summaries[index].doctor}'),
+            //         subtitle: Text(result.summaries[index].summary),
+            //       );
+            //     },
+            //   ),
+            // ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Map<String, Map<String, int>> processDocumentsForRoom(List<QueryDocumentSnapshot> docs) {
+  //   List<String> roomLists = ['1', '2', '3'];
+  //   Map<String, Map<String, int>> roomSummary= {};
+  //   for (var doc in docs) {
+  //     if (doc['room'] == '1') {
+  //       if (doc)
+  //       roomSummary['1']
+  //     }
+  //   }
+  // }
+
   Widget buildSummaryWidget(String startDate, String endDate) {
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseFirestore.instance
@@ -665,7 +784,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
         }
         if (snapshot.data!.docs.isEmpty) {
           return Center(
-            child: Text("오늘의 환자 기록이 없습니다.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo),),
+            child: Text("환자 기록이 없습니다.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo),),
           );
         }
 
@@ -724,6 +843,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                             ),
                           ],
                         ),
+                        if (result.totalDetailSummaries['sig'] != 0)
                         TableRow(
                           children: [
                             Text('Sig', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold),),
@@ -844,7 +964,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
     // totalDetailSummaries['total_outpatient'] = totalDetailSummaries['gsf_outpatient']! + totalDetailSummaries['csf_outpatient']! + totalDetailSummaries['sig']!;
     // totalDetailSummaries['totalPatient'] =  totalDetailSummaries['total_gumjin']! + totalDetailSummaries['total_outpatient']!;
 
-    print ('zzzz:$totalDetailSummaries');
     return ResultData(totalDetailSummaries, summaries);
 
   }
@@ -1203,6 +1322,78 @@ class _StatisticsPageState extends State<StatisticsPage> {
             examSummary? buildSummaryWidget(
                 DateFormat('yyyy-MM-dd').format(startDateForExamSummary), DateFormat('yyyy-MM-dd').format(endDateForExamSummary))
                 : SizedBox(),
+            // Row(
+            //   children: [
+            //     SizedBox(width: 5,),
+            //     Text(
+            //       '방별 요약',
+            //       textAlign: TextAlign.start,
+            //       style: TextStyle(
+            //         fontWeight: FontWeight.bold,
+            //         fontSize: 20,
+            //         color: Colors.blueGrey,
+            //         shadows: [
+            //           Shadow(
+            //             offset: Offset(2.0, 2.0),
+            //             blurRadius: 2.0,
+            //             color: Colors.blueGrey.withOpacity(0.5),
+            //           ),
+            //         ],
+            //
+            //       ),
+            //     ),
+            //     Checkbox(
+            //       tristate:false,
+            //       value: roomSummary,
+            //       onChanged: (value) {
+            //         setState(() {
+            //           roomSummary = value!;
+            //         });
+            //       },
+            //     ),
+            //     roomSummary? TextButton(
+            //       onPressed: () => _selectDateForRoom(context, true), // true for start date
+            //       child: Row(
+            //         children: [
+            //           Text(
+            //             'From: ',
+            //             style: TextStyle(
+            //               fontSize: 16,
+            //               fontWeight: FontWeight.bold,
+            //             ),
+            //           ),
+            //           Text(DateFormat('yy-MM-dd').format(startDateForExamSummary)),
+            //         ],
+            //       ),
+            //       style: ButtonStyle(
+            //         padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 8.0)), // 버튼 내부 패딩 조절
+            //         // 기타 스타일 설정...
+            //       ),
+            //     ) : SizedBox(),
+            //     roomSummary? TextButton(
+            //       onPressed: () => _selectDateForRoom(context, false), // false for end date
+            //       child: Row(
+            //         children: [
+            //           Text(
+            //             'To: ',
+            //             style: TextStyle(
+            //               fontSize: 16,
+            //               fontWeight: FontWeight.bold,
+            //             ),
+            //           ),
+            //           Text(DateFormat('yy-MM-dd').format(endDateForExamSummary)),
+            //         ],
+            //       ),
+            //       style: ButtonStyle(
+            //         padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 5.0)), // 버튼 내부 패딩 조절
+            //         // 기타 스타일 설정...
+            //       ),
+            //     ) : SizedBox(),
+            //   ],
+            // ),
+            // roomSummary? buildSummaryWidget(
+            //     DateFormat('yyyy-MM-dd').format(startDateForExamSummary), DateFormat('yyyy-MM-dd').format(endDateForExamSummary))
+            //     : SizedBox(),
             // ElevatedButton(
             //     onPressed: () => makingExcelFileEndoscopyWahserDailyReport(DateFormat('yyyy-MM-dd').format(selectedDate)),
             //     child: Text('엑셀')
