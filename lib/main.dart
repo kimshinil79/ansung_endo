@@ -5,13 +5,20 @@ import 'package:ansung_endo/tabs/washing_room.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+//import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'providers/patient_model_provider.dart';
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(MyApp());
+  runApp(
+    ChangeNotifierProvider(
+        create: (context)=>PatientModel(),
+        child: MyApp(),
+    )
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -53,7 +60,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           children: [
             Expanded(
               child: Text(
-                  '안성 성모 내시경센터 v1.5',
+                  '안성 성모 내시경센터 v1.6',
                   style: TextStyle(
                     fontSize: 27,
                     fontWeight: FontWeight.bold,
@@ -80,9 +87,9 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       body: TabBarView(
         controller: _tabController,
         children: [
-          ExaminationRoom(), // 검사실 탭의 위젯
+          ExaminationRoom(tabController: _tabController), // 검사실 탭의 위젯
           WashingRoom(),
-          StatisticsPage(),
+          StatisticsPage(tabController:_tabController),
           SettingsPage(),// 세척실 탭의 위젯
         ],
       ),

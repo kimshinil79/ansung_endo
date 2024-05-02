@@ -51,6 +51,7 @@ dependencies:
   http: ^1.2.1
   image_picker: ^1.0.7
   uuid: ^4.3.3
+  provider: ^6.1.2
 
 dev_dependencies:
   flutter_test:

@@ -109,8 +109,8 @@ class _WasherRecordButtonState extends State<WasherRecordButton> {
             shape: MaterialStateProperty.all(RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
               side: BorderSide(
-                  color: _isSelected?Colors.indigoAccent : Color(0xFF007F73),
-                  width: 2.0),  // Invisible border on button itself
+                  color: _isSelected? Colors.indigoAccent : Color(0xFF007F73),
+                  width: _isSelected? 2.0 :0.0),  // Invisible border on button itself
             )
             ),
           ),

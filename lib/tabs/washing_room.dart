@@ -1570,6 +1570,7 @@ class _WashingRoomState extends State<WashingRoom> {
                     onLongPress: () {
                       setState(() {
                         selectedScopyName = "기기세척";
+                        endoscopySelection = false;
                       });
                     },
                     child: Text(
@@ -1577,7 +1578,7 @@ class _WashingRoomState extends State<WashingRoom> {
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16
+                        fontSize: 10
                       ),
                     ),
                     style: ButtonStyle(
@@ -1629,44 +1630,46 @@ class _WashingRoomState extends State<WashingRoom> {
               ],
             ),
             SizedBox(height: 10,),
-            _isPressedMachine && (selectedPatientNameAndScopyName != "환자" || endoscopySelection)? Row(
-              children: <Widget>[
-                SizedBox(width: 5,),
-                Expanded(
-                  flex: 5,
-                  child: ElevatedButton(
-                    onPressed: () => _store(selectedMachineName, selectedScopyName, patientAndExamInformation, appBarDate),
-                    child: Text(
-                      '저장',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16
-                      ),
-                    ),
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(const Color(0xFF5F5D9C)),
-                      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
+            _isPressedMachine && (selectedPatientNameAndScopyName != "환자" || endoscopySelection)? Column(
+              children: [
+                Row(
+                  children: <Widget>[
+                    SizedBox(width: 5,),
+                    Expanded(
+                      flex: 5,
+                      child: ElevatedButton(
+                        onPressed: () => _store(selectedMachineName, selectedScopyName, patientAndExamInformation, appBarDate),
+                        child: Text(
+                          '저장',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16
+                          ),
+                        ),
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.all(const Color(0xBFAE1E49)),
+                          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
+                            ),
+                          ),
+                          fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
                         ),
                       ),
-                      fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
                     ),
-                  ),
+                    SizedBox(width: 10,),
+                  ],
                 ),
-                SizedBox(width: 10,),
-
-                SizedBox(width: 10,),
+                SizedBox(height: 10,),
               ],
             ) : SizedBox(),
 
-            SizedBox(height: 5,),
             const Divider(
               color: Colors.black,
               height: 3.0,
             ),
-            SizedBox(height: 5,),
+            SizedBox(height: 10,),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
