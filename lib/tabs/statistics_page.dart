@@ -3,12 +3,13 @@
 //import 'dart:html';
 
 import 'package:ansung_endo/providers/patient_model_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:ansung_endo/widgets/sort_detail.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xls;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -72,12 +73,15 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
   DateTime endDateForExamSummary = DateTime.now();
   DateTime startDateForRoomSummary = DateTime.now();
   DateTime endDateForRoomSummary = DateTime.now();
+  DateTime startDateForDetailQuery = DateTime.now();
+  DateTime endDateForDetailQuery = DateTime.now();
   DateTime summaryDate = DateTime.now();
   bool? period = false;
   bool todayResult = false;
   bool eachDocSummary = false;
   bool examSummary = false;
   bool roomSummary = false;
+  bool detailQuery = false;
 
   @override
   void initState() {
@@ -545,21 +549,71 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
     }
   }
 
-  Future<void> _selectDateForRoom(BuildContext context, bool isStart) async {
+  Future<void> _selectDateForEachPurpose(BuildContext context, String title,  bool isStart) async {
+
+    DateTime? startDate;
+    DateTime? endDate;
+
+    if (title == "Doc") {
+      startDate = startDateForDocSummary;
+      endDate = endDateForDocSummary;
+    }
+    if (title == "Exam") {
+      startDate = startDateForExamSummary;
+      endDate = endDateForExamSummary;
+    }
+    if (title == "Room") {
+      startDate = startDateForRoomSummary;
+      endDate = endDateForRoomSummary;
+    }
+    if (title =="detailQuery") {
+      startDate = startDateForDetailQuery;
+      endDate = endDateForDetailQuery;
+    }
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStart ? startDateForRoomSummary : endDateForRoomSummary,
+      initialDate: isStart ? startDate : endDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
     if (picked != null) {
-      setState(() {
-        if (isStart) {
-          startDateForRoomSummary = picked;
-        } else {
-          endDateForRoomSummary = picked;
-        }
-      });
+      if (title == "Doc") {
+        setState(() {
+          if (isStart) {
+            startDateForDocSummary = picked;
+          } else {
+            endDateForDocSummary = picked;
+          }
+        });
+      }
+      if (title == "Exam") {
+        setState(() {
+          if (isStart) {
+            startDateForExamSummary = picked;
+          } else {
+            endDateForExamSummary = picked;
+          }
+        });
+      }
+      if (title == "Room") {
+        setState(() {
+          if (isStart) {
+            startDateForRoomSummary = picked;
+          } else {
+            endDateForRoomSummary = picked;
+          }
+        });
+      }
+      if (title =="detailQuery") {
+        setState(() {
+          if (isStart) {
+            startDateForDetailQuery = picked;
+          } else {
+            endDateForDetailQuery = picked;
+          }
+        });
+      }
     }
   }
 
@@ -1140,12 +1194,6 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
   }
 
 
-
-
-
-
-
-
   @override
   Widget build(BuildContext context) {
 
@@ -1245,7 +1293,7 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                 children: [
                   //SizedBox(width: 1,),
                   TextButton(
-                    onPressed: () => _selectDateForDoc(context, true), // true for start date
+                    onPressed: () => _selectDateForEachPurpose(context, "Doc", true), // true for start date
                     child: Row(
                       children: [
                         Text(
@@ -1264,7 +1312,7 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                     ),
                   ),
                   TextButton(
-                    onPressed: () => _selectDateForDoc(context, false), // false for end date
+                    onPressed: () => _selectDateForEachPurpose(context, "Doc", false), // false for end date
                     child: Row(
                       children: [
                         Text(
@@ -1328,7 +1376,7 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                 ],
               )
              : SizedBox(),
-            SizedBox(height: 10,),
+            SizedBox(height: 5,),
             //Divider(color: Colors.indigo,),
             Row(
               children: [
@@ -1360,7 +1408,7 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                   },
                 ),
                 examSummary? TextButton(
-                  onPressed: () => _selectDateForExam(context, true), // true for start date
+                  onPressed: () => _selectDateForEachPurpose(context,"Exam", true), // true for start date
                   child: Row(
                     children: [
                       Text(
@@ -1379,7 +1427,7 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                   ),
                 ) : SizedBox(),
                 examSummary? TextButton(
-                  onPressed: () => _selectDateForExam(context, false), // false for end date
+                  onPressed: () => _selectDateForEachPurpose(context, "Exam", false), // false for end date
                   child: Row(
                     children: [
                       Text(
@@ -1432,7 +1480,7 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                   },
                 ),
                 roomSummary? TextButton(
-                  onPressed: () => _selectDateForRoom(context, true), // true for start date
+                  onPressed: () => _selectDateForEachPurpose(context, "Room", true), // true for start date
                   child: Row(
                     children: [
                       Text(
@@ -1451,7 +1499,7 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                   ),
                 ) : SizedBox(),
                 roomSummary? TextButton(
-                  onPressed: () => _selectDateForRoom(context, false), // false for end date
+                  onPressed: () => _selectDateForEachPurpose(context, "Room",  false), // false for end date
                   child: Row(
                     children: [
                       Text(
@@ -1474,6 +1522,86 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
             roomSummary? buildRoomSummaryWidget(
                 DateFormat('yyyy-MM-dd').format(startDateForRoomSummary), DateFormat('yyyy-MM-dd').format(endDateForRoomSummary))
                 : SizedBox(),
+            Row(
+              children: [
+                SizedBox(width: 5,),
+                Text(
+                  '세부 검색',
+                  textAlign: TextAlign.start,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: Colors.blueGrey,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(2.0, 2.0),
+                        blurRadius: 2.0,
+                        color: Colors.blueGrey.withOpacity(0.5),
+                      ),
+                    ],
+
+                  ),
+                ),
+                Checkbox(
+                  tristate:false,
+                  value: detailQuery,
+                  onChanged: (value) {
+                    setState(() {
+                      detailQuery = value!;
+                    });
+                  },
+                ),
+                detailQuery? TextButton(
+                  onPressed: () => _selectDateForEachPurpose(context, "detailQuery", true), // true for start date
+                  child: Row(
+                    children: [
+                      Text(
+                        'From: ',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(DateFormat('yy-MM-dd').format(startDateForDetailQuery)),
+                    ],
+                  ),
+                  style: ButtonStyle(
+                    padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 8.0)), // 버튼 내부 패딩 조절
+                    // 기타 스타일 설정...
+                  ),
+                ) : SizedBox(),
+                detailQuery? TextButton(
+                  onPressed: () => _selectDateForEachPurpose(context, "detailQuery", false), // false for end date
+                  child: Row(
+                    children: [
+                      Text(
+                        'To: ',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(DateFormat('yy-MM-dd').format(endDateForDetailQuery)),
+                    ],
+                  ),
+                  style: ButtonStyle(
+                    padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 5.0)), // 버튼 내부 패딩 조절
+                  ),
+                ) : SizedBox(),
+              ],
+            ),
+            detailQuery? Container(
+                padding: EdgeInsets.all(1.0),
+                decoration: BoxDecoration(
+                  color: Colors.white24, // 배경색 설정
+                  border: Border.all(
+                    color: Colors.grey, // 테두리 색상
+                    width: 1.0, // 테두리 두께
+                  ),
+                  borderRadius: BorderRadius.circular(12), // 테두리 둥글게
+                ),
+                child: sortDetail(startDate: startDateForDetailQuery, endDate: endDateForDetailQuery, tabController: widget.tabController!)) : SizedBox(),
+            SizedBox(height: 10,),
             // ElevatedButton(
             //     onPressed: () => makingExcelFileEndoscopyWahserDailyReport(DateFormat('yyyy-MM-dd').format(selectedDate)),
             //     child: Text('엑셀')

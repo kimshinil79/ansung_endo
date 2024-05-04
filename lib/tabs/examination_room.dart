@@ -1219,7 +1219,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                             ),
                                           ),
                                           Checkbox(
-                                            tristate:false,
+                                            //tristate:false,
                                             value: patientAndExamInformation['위응급'],
                                             onChanged: (value) {
                                               setState(() {
