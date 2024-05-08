@@ -750,7 +750,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
 
       for(var doc in querySnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        if(data['이름'] != '없음') {
+        if(data['이름'] !='기기세척') {
           todayPatients.add(data);
         }
       }
@@ -811,6 +811,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                   title: Text("${patient['이름']}(${patient['환자번호']}) ${patient['성별']}/${patient['나이']}"),
                   subtitle: Text("${patient['날짜']}  ${patient['시간']}"),
                   onTap: () {
+                    Provider.of<PatientModel>(context, listen: false).updatePatient(patient);
                     Navigator.of(context).pop();
                     setState(() {
                       newData = false;
@@ -1174,7 +1175,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                 TextButton(
                                   onPressed: () {},
                                   child: Text(
-                                    '위 내시경 기계',
+                                    'Scopes',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
@@ -1220,7 +1221,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                           ),
                                           Checkbox(
                                             //tristate:false,
-                                            value: patientAndExamInformation['위응급'],
+                                            value: patientAndExamInformation['위응급']?? false,
                                             onChanged: (value) {
                                               setState(() {
                                                 patientAndExamInformation['위응급'] = value;
@@ -1240,8 +1241,8 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                             ),
                                               ),
                                           Checkbox(
-                                            tristate:false,
-                                            value: patientAndExamInformation['PEG'],
+                                            //tristate:false,
+                                            value: patientAndExamInformation['PEG']?? false,
                                             onChanged: (value) {
                                               setState(() {
                                                 patientAndExamInformation['PEG'] = value;
@@ -1425,7 +1426,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                 TextButton(
                                   onPressed: () {},
                                   child: Text(
-                                    '대장 내시경 기계',
+                                    'Scopes',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
@@ -1434,6 +1435,27 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                   ),
                                 ),
                                 _buildGSFMachinesSelection('대장내시경', CSFmachine, selectedCSFMachines),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  '응급',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: Colors.black.withOpacity(0.5),
+                                  ),
+                                ),
+                                Checkbox(
+                                  //tristate:false,
+                                  value: patientAndExamInformation['대장응급']?? false,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      patientAndExamInformation['대장응급'] = value;
+                                    });
+                                  },
+                                ),
                               ],
                             ),
 
@@ -1503,7 +1525,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                           Text('응급', style: TextStyle(fontSize: 18)),
                                           SizedBox(width: 10),
                                           Checkbox(
-                                            tristate:false,
+                                            //tristate:false,
                                             value: patientAndExamInformation['sig응급']?? false,
                                             onChanged: (value) {
                                               setState(() {
@@ -1528,7 +1550,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
                                   TextButton(
                                     onPressed: () {},
                                     child: Text(
-                                      'sig 모델명',
+                                      'Scopes',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 18,
@@ -1604,6 +1626,8 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
       }
     }
 
+    bool _isSaveButtonDisabled = false;
+
     Future<void> finalSaveButton() async {
       if (appBarDate == 'Today' && newData!) {
         patientAndExamInformation['날짜'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -1619,24 +1643,25 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
           patientAndExamInformation['시간'] = pickedTime.hour.toString() + ":" + pickedTime.minute.toString();
         }
       }
-      // final String patientNumber = patientAndExamInformation['환자번호'];
-      // final String patientName = patientAndExamInformation['이름'];
-      // final String date = patientAndExamInformation['날짜'];
-      // final String time = patientAndExamInformation['시간'];
 
-      try {
-        await updatePatientAndExamInfo(patientAndExamInformation);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('환자 정보가 저장되었습니다.'),
-          ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('환자 정보 저장 중 오류가 발생했습니다: $e'),
-          ),
-        );
+      if (!_isSaveButtonDisabled) {
+        _isSaveButtonDisabled = true;
+        try {
+          await updatePatientAndExamInfo(patientAndExamInformation);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('환자 정보가 저장되었습니다.'),
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('환자 정보 저장 중 오류가 발생했습니다: $e'),
+            ),
+          );
+        } finally {
+          _isSaveButtonDisabled = false;
+        }
       }
     };
 
@@ -2021,9 +2046,12 @@ class DisplayPictureScreen extends StatefulWidget {
   @override
   _DisplayPictureScreenState createState() => _DisplayPictureScreenState();
 }
+
+
 class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
 
   String _recognizedText = "";
+  bool _isSaveButtonDisabled = false;
 
   Map<String, TextEditingController> controllers = {};
   Map<String, dynamic> patientInformation =  {"id":"", "환자번호":"", '이름':"", '성별':"", '나이':"", "Room":"", "생일":"", "의사":"", "날짜":"", "시간":"",
@@ -2185,21 +2213,28 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                     patientInformation['sig절제술'] = "0";
                     patientInformation['sig응급'] = false;
                     patientInformation['sig'] = {};
-                    try {
-                      String docName = patientInformation['이름']! + "_" + patientInformation['날짜']! + "_" + patientInformation['id']! ;
-                      await firestore.collection('patients').doc(docName).set(patientInformation);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('환자 정보가 저장되었습니다.'),
-                        ),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('환자 정보 저장 중 오류가 발생했습니다: $e'),
-                        ),
-                      );
+
+                    if (!_isSaveButtonDisabled) {
+                      _isSaveButtonDisabled = true;
+                      try {
+                        String docName = patientInformation['이름']! + "_" + patientInformation['날짜']! + "_" + patientInformation['id']! ;
+                        await firestore.collection('patients').doc(docName).set(patientInformation);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('환자 정보가 저장되었습니다.'),
+                          ),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('환자 정보 저장 중 오류가 발생했습니다: $e'),
+                          ),
+                        );
+                      } finally {
+                        _isSaveButtonDisabled = false;
+                      }
                     }
+
 
                     Navigator.popUntil(context, ModalRoute.withName('/'));
                     Navigator.pushReplacementNamed(context, '/', arguments: patientInformation);

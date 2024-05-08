@@ -44,12 +44,16 @@ class _WashingRoomState extends State<WashingRoom> {
   bool _isPressedMachine = false;
   bool _isPressedScopy = false;
   bool endoscopySelection = false;
+  bool endoscopySelectionForJustWashing = false;
   int _selectedIndexMachine = 0;
   int _selectedIndexScopy = 0;
   String selectedMachineName = "";
   String selectedScopyName = "";
   String _selectedTimeOtherDay = "";
   bool displatyToday = true;
+  int? notCompletedWashingRecordNum ;
+  List<String> encouragingComments = ['와우~굿잡^^', '늘 감사합니다~', '쌤 최고에요!!', "으쌰~홧팅!!", "내시경실 홧팅!!", "환타스틱!!", "고고씽~",
+    "쉬엄쉬엄해요~", "이 은혜를 어찌갚죠?!"];
 
 
   Map<String, String> scopyFullName = {'039':'7C692K039', '073':'KG391K073', '098':'5C692K098',  '153':'5G391K153', '166':'6C692K166',
@@ -78,7 +82,7 @@ class _WashingRoomState extends State<WashingRoom> {
     //super.initState();
     //_loadData();
     _loadDataFromFirebase();
-
+    _counNotCompleteWashingRecord();
     List<bool> isSelected = List.generate(scopyShortName.length, (_) => false);
   }
 
@@ -95,52 +99,21 @@ class _WashingRoomState extends State<WashingRoom> {
     });
   }
 
+  //기기세척을 위한 내시경 기계 이름 클릭
   Future<void> _onPressedScopy(String scopyName) async {
 
     setState(() {
-      print ('클릭클릭:$scopyName');
+      noPatient = true;
       if (selectedScopyName != scopyName) {
         selectedScopyName = scopyName;
         _isPressedScopy = true;
-        endoscopySelection = true;
+        endoscopySelectionForJustWashing = true;
       } else {
         _isPressedScopy = !_isPressedScopy;
-        endoscopySelection != endoscopySelection;
+        endoscopySelectionForJustWashing != endoscopySelectionForJustWashing;
       }
       if(noPatient) {
-        patientAndExamInformation['id'] = generateUniqueId();
-        patientAndExamInformation['이름'] = "기기세척";
-        patientAndExamInformation['환자번호'] = "";
-        patientAndExamInformation['성별'] = "";
-        patientAndExamInformation['나이'] = "";
-        patientAndExamInformation['Room'] = "없음";
-        patientAndExamInformation['생일'] = "없음";
-        patientAndExamInformation['의사'] = "없음";
-        patientAndExamInformation['날짜'] = "";
-        patientAndExamInformation['시간'] = "";
-        patientAndExamInformation['위검진_외래'] = "없음";
-        patientAndExamInformation['위수면_일반'] = "없음";
-        patientAndExamInformation['위조직'] = "0";
-        patientAndExamInformation['CLO'] = false;
-        if (GSFmachine.containsKey(scopyName)) {
-          patientAndExamInformation['위내시경'] = {scopyName:{'세척시간':"", '세척기계':""}};  
-        }
-        patientAndExamInformation['위절제술'] = "0";
-        patientAndExamInformation['위응급'] = false;
-        patientAndExamInformation['PEG'] = false;
-        patientAndExamInformation['대장검진_외래'] = "없음";
-        patientAndExamInformation['대장수면_일반'] = "없음";
-        patientAndExamInformation['대장조직'] = "0";
-        patientAndExamInformation['대장절제술'] = "0";
-        patientAndExamInformation['대장응급'] = false;
-        if (CSFmachine.containsKey(scopyName)) {
-          patientAndExamInformation['대장내시경'] = {scopyName:{'세척시간':"", '세척기계':""}};
-        }
-        patientAndExamInformation['sig조직'] = "0";
-        patientAndExamInformation['sig절제술'] = "0";
-        patientAndExamInformation['sig응급'] = false;
-        patientAndExamInformation['sig'] = {};
-
+        print ('nothing happened!!');
       }
     });
   }
@@ -274,84 +247,6 @@ class _WashingRoomState extends State<WashingRoom> {
         }
       }
 
-      // for (var machine in machines) {
-      //   QuerySnapshot querySnapshotForGSFArray  = await firestore
-      //       .collection('patients').where('위세척기계', arrayContains: machine).get();
-      //   // QuerySnapshot querySnapshotForGSFString  = await firestore
-      //   //     .collection('patients').where('위세척기계', isEqualTo: machine).get();
-      //   // List<QueryDocumentSnapshot> totalquerySnapshots = [];
-      //   // totalquerySnapshots.addAll(querySnapshotForGSFArray.docs);
-      //   // totalquerySnapshots.addAll(querySnapshotForGSFString.docs);
-      //   for (var doc in querySnapshotForGSFArray.docs) {
-      //     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      //     if (doc['위내시경기계'] is List) {
-      //       int indexOfMachine = data['위세척기계'].indexOf(machine);
-      //       String gsfWashingTime = data['위내시경세척시간'][indexOfMachine];
-      //       String scope = data['위내시경기계'][indexOfMachine];
-      //       machineScopyTimePtName[machine]!.add({
-      //         '일련번호': scope,
-      //         '날짜-시간': gsfWashingTime,
-      //         '환자이름': data['이름'],
-      //         '환자id': data['id']
-      //       });
-      //     } else if (doc['위내시경기계'] is String) {
-      //       machineScopyTimePtName[machine]!.add({
-      //         '일련번호': doc['위내시경기계'],
-      //         '날짜-시간': doc['위내시경세척시간'],
-      //         '환자이름': data['이름'],
-      //         '환자id': data['id']
-      //       });
-      //     }
-      //   }
-      //
-      //   QuerySnapshot querySnapshotForCSFArray = await firestore
-      //       .collection('patients').where('대장세척기계', arrayContains: machine).get();
-      //   // QuerySnapshot querySnapshotForCSFString  = await firestore
-      //   //     .collection('patients').where('대장세척기계', isEqualTo: machine).get();
-      //   // List<QueryDocumentSnapshot> totalquerySnapshots2 = [];
-      //   // totalquerySnapshots2.addAll(querySnapshotForCSFArray.docs);
-      //   // totalquerySnapshots2.addAll(querySnapshotForCSFString.docs);
-      //   for (var doc in querySnapshotForCSFArray.docs) {
-      //     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      //     if(doc['대장내시경기계'] is List) {
-      //       int indexOfMachine = data['대장세척기계'].indexOf(machine);
-      //       String csfWashingTime = data['대장내시경세척시간'][indexOfMachine];
-      //       String scope = data['대장내시경기계'][indexOfMachine];
-      //       machineScopyTimePtName[machine]!.add({
-      //         '일련번호': scope,
-      //         '날짜-시간': csfWashingTime,
-      //         '환자이름': data['이름'],
-      //         '환자id': data['id']
-      //       });
-      //     } else if (doc['대장내시경기계'] is String) {
-      //       machineScopyTimePtName[machine]!.add({
-      //         '일련번호': doc['대장내시경기계'],
-      //         '날짜-시간': doc['대장내시경세척시간'],
-      //         '환자이름': data['이름'],
-      //         '환자id': data['id']
-      //       });
-      //     }
-      //   }
-      //   try{
-      //     QuerySnapshot querySnapshotForSigArray = await firestore
-      //         .collection('patients').where('sig세척기계', isEqualTo: machine).get();
-      //     for (var doc in querySnapshotForSigArray.docs) {
-      //       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      //       String sigWashingTime = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(data['sig세척시간']));
-      //       String scope = data['sig기계'];
-      //       machineScopyTimePtName[machine]!.add({
-      //         '일련번호': scope,
-      //         '날짜-시간': sigWashingTime,
-      //         '환자이름': data['이름'],
-      //         '환자id': data['id']
-      //       });
-      //     }
-      //   } catch (e) {
-      //     print ('zzzzzzzz:$e');
-      //   }
-      //
-      //
-      // }
     } catch (e) {
       print ('환자 정보와 기계 정보 메치에 에러 발생:$e');
     }
@@ -442,8 +337,7 @@ class _WashingRoomState extends State<WashingRoom> {
     }
   }
 
-
-
+  bool _isSaveButtonDisabled = false;
 
   Future<void> saveMachineScopyTimePtIDToFirestore(String machine, Map<String, String> recordInfo, Map<String, dynamic> patientAndExamInformation) async {
     // Firestore 인스턴스 생성
@@ -452,78 +346,81 @@ class _WashingRoomState extends State<WashingRoom> {
     // 문서 이름 생성 ('machine_날짜-시간')
     String documentName = '${recordInfo['일련번호']}_${recordInfo['날짜-시간']}';
 
-    try {
-      // 'machine' 컬렉션 내 'machine' 문서의 'records' 서브컬렉션에
-      // 'documentName' 이름으로 문서 생성 후 'recordInfo' Map 데이터 추가
-      //await firestore.collection('machines').doc(machine).collection('records').doc(documentName).set(recordInfo);
-      String id = patientAndExamInformation['id'];
-      QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:id).get();
-      if (querySnapshot.docs.isNotEmpty) {
-        for (var doc in querySnapshot.docs) {
-          await firestore.collection('patients').doc(doc.id).update(patientAndExamInformation);
+    if (!_isSaveButtonDisabled) {
+      _isSaveButtonDisabled = true;
+      try {
+        // 'machine' 컬렉션 내 'machine' 문서의 'records' 서브컬렉션에
+        // 'documentName' 이름으로 문서 생성 후 'recordInfo' Map 데이터 추가
+        //await firestore.collection('machines').doc(machine).collection('records').doc(documentName).set(recordInfo);
+        String id = patientAndExamInformation['id'];
+        QuerySnapshot querySnapshot = await firestore.collection('patients').where('id', isEqualTo:id).get();
+        if (querySnapshot.docs.isNotEmpty) {
+          for (var doc in querySnapshot.docs) {
+            await firestore.collection('patients').doc(doc.id).update(patientAndExamInformation);
+          }
+        } else {
+          String docName = patientAndExamInformation['이름']! + "_" + patientAndExamInformation['날짜']! + "_" + patientAndExamInformation['id']! ;
+          print ('기기세척 일때만 통과');
+          await firestore.collection('patients').doc(docName).set(patientAndExamInformation);
         }
-      } else {
-        String docName = patientAndExamInformation['이름']! + "_" + patientAndExamInformation['날짜']! + "_" + patientAndExamInformation['id']! ;
-        await firestore.collection('patients').doc(docName).set(patientAndExamInformation);
-      }
 
-      print('Data saved successfully!');
-    } catch (e) {
-      print('Error saving data to Firestore: $e');
+        print('Data saved successfully!');
+      } catch (e) {
+        print('Error saving data to Firestore: $e');
+      } finally {
+        _isSaveButtonDisabled = false;
+      }
     }
+  }
+
+  Future<void> _counNotCompleteWashingRecord() async {
+    print ('count 시작');
+    int tempCount = 0;
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+    String dateForCount = DateFormat('yyyy-MM-dd').format(selectedDate);
+    var querySnapshot = await firestore.collection('patients').
+    where('날짜', isEqualTo: dateForCount).get();
+
+    for (var doc in querySnapshot.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      if (data['위내시경'].isNotEmpty && !data['이름'].contains('기기세척')) {
+        for (var machine in data['위내시경'].keys) {
+          if (data['위내시경'][machine]['세척기계'] =="") {
+            tempCount++;
+          }
+        }
+      }
+      if (data['대장내시경'].isNotEmpty && !data['이름'].contains('기기세척')) {
+        for (var machine in data['대장내시경'].keys) {
+          if (data['대장내시경'][machine]['세척기계'] =="") {
+            tempCount++;
+          }
+        }
+      }
+      if (data['sig'].isNotEmpty && !data['이름'].contains('기기세척')) {
+        for (var machine in data['sig'].keys) {
+          if (data['sig'][machine]['세척기계'] =="") {
+            tempCount++;
+          }
+        }
+      }
+    }
+    setState(() {
+      notCompletedWashingRecordNum = tempCount;
+      if (notCompletedWashingRecordNum !=0) {
+        selectedPatientNameAndScopyName = '미세척 scope $notCompletedWashingRecordNum개 남음!';
+      } else {
+        encouragingComments.shuffle();
+        selectedPatientNameAndScopyName = encouragingComments.first;
+      }
+    });
+
+    return ;
+
   }
 
 
   void _store(String machineName, String scopy, Map<String, dynamic> patientAndExamInformation, String appBarDate) async {
-
-    // if (GSFmachine.keys.contains(scopy)) {
-    //   if ((patientAndExamInformation['위내시경'][scopy]["세척시간"] !="" && patientAndExamInformation['위내시경'][scopy]["세척기계"] !="")
-    //   ) {
-    //     showDialog(
-    //       context: context,
-    //       builder: (BuildContext context) {
-    //         return AlertDialog(
-    //           title: Text('경고'),
-    //           content: Text('이미 입력된 정보입니다.'),
-    //           actions: [
-    //             TextButton(
-    //               onPressed: () {
-    //                 Navigator.of(context).pop();
-    //               },
-    //               child: Text('예'),
-    //             ),
-    //           ],
-    //         );
-    //       },
-    //     );
-    //     return;
-    //   }
-    // }
-    // if (CSFmachine.keys.contains(scopy)) {
-    //   if ((patientAndExamInformation['대장내시경'][scopy]["세척시간"] !="" && patientAndExamInformation['대장내시경'][scopy]["세척기계"] !="")
-    //   ) {
-    //     showDialog(
-    //       context: context,
-    //       builder: (BuildContext context) {
-    //         return AlertDialog(
-    //           title: Text('경고'),
-    //           content: Text('이미 입력된 정보입니다.'),
-    //           actions: [
-    //             TextButton(
-    //               onPressed: () {
-    //                 Navigator.of(context).pop();
-    //               },
-    //               child: Text('예'),
-    //             ),
-    //           ],
-    //         );
-    //       },
-    //     );
-    //     return;
-    //   }
-    // }
-
-
 
 
     if (!_isPressedMachine) {
@@ -590,35 +487,79 @@ class _WashingRoomState extends State<WashingRoom> {
 
     if (appBarDate == 'Today') {
       if (_isPressedMachine ) {
-        final currentTime = timeToformattedFormAsyyyyMMddHHmm(DateTime.now());
-        patientAndExamInformation['날짜'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
-        // if (patientAndExamInformation['위내시경기계'] == null  ) {
-        //   patientAndExamInformation['위내시경기계'] = [];
-        //   patientAndExamInformation['위세척기계'] = [];
-        //   patientAndExamInformation['위내시경세척시간'] = [];
-        // }
-        // if (patientAndExamInformation['대장내시경기계'] == null) {
-        //   patientAndExamInformation['대장내시경기계'] = [];
-        //   patientAndExamInformation['대정세척기계'] = [];
-        //   patientAndExamInformation['대장내시경세척시간'] = [];
-        // }
-        // if (patientAndExamInformation['sig기계'] == null) {
-        //   patientAndExamInformation['sig세척기계'] = '';
-        //   patientAndExamInformation['sig세척시간'] = '';
-        // }
-        if (GSFmachine.containsKey(scopy) && patientAndExamInformation['위내시경'].keys.toList().contains(scopy)) {
-            patientAndExamInformation['위내시경'][scopy] = {'세척기계':machineName, '세척시간':currentTime};
-        } else if(CSFmachine.containsKey(scopy) && patientAndExamInformation['대장내시경'].keys.toList().contains(scopy)){
-          patientAndExamInformation['대장내시경'][scopy] = {'세척기계':machineName, '세척시간':currentTime};
-        } else if(patientAndExamInformation['sig'].keys.toList().contains(scopy)) {
-          patientAndExamInformation['sig'][scopy] = {'세척기계':machineName, '세척시간':currentTime};
+        if (GSFmachine.containsKey(scopy) && noPatient) {
+          patientAndExamInformation['id'] = generateUniqueId();
+          patientAndExamInformation['이름'] = "기기세척";
+          patientAndExamInformation['환자번호'] = scopy;
+          patientAndExamInformation['성별'] = "";
+          patientAndExamInformation['나이'] = "";
+          patientAndExamInformation['Room'] = "없음";
+          patientAndExamInformation['생일'] = "없음";
+          patientAndExamInformation['의사'] = "없음";
+          patientAndExamInformation['날짜'] = "";
+          patientAndExamInformation['시간'] = "";
+          patientAndExamInformation['위검진_외래'] = "없음";
+          patientAndExamInformation['위수면_일반'] = "없음";
+          patientAndExamInformation['위조직'] = "0";
+          patientAndExamInformation['CLO'] = false;
+          patientAndExamInformation['위내시경'] = {scopy:{'세척시간':"", '세척기계':""}};
+          patientAndExamInformation['위절제술'] = "0";
+          patientAndExamInformation['위응급'] = false;
+          patientAndExamInformation['PEG'] = false;
+          patientAndExamInformation['대장내시경'] = {};
+          patientAndExamInformation['대장검진_외래'] = "없음";
+          patientAndExamInformation['대장수면_일반'] = "없음";
+          patientAndExamInformation['대장조직'] = "0";
+          patientAndExamInformation['대장절제술'] = "0";
+          patientAndExamInformation['대장응급'] = false;
+          patientAndExamInformation['sig조직'] = "0";
+          patientAndExamInformation['sig절제술'] = "0";
+          patientAndExamInformation['sig응급'] = false;
+          patientAndExamInformation['sig'] = {};
+
+        } else if (CSFmachine.containsKey(scopy) && noPatient) {
+          patientAndExamInformation['id'] = generateUniqueId();
+          patientAndExamInformation['이름'] = "기기세척";
+          patientAndExamInformation['환자번호'] = scopy;
+          patientAndExamInformation['성별'] = "";
+          patientAndExamInformation['나이'] = "";
+          patientAndExamInformation['Room'] = "없음";
+          patientAndExamInformation['생일'] = "없음";
+          patientAndExamInformation['의사'] = "없음";
+          patientAndExamInformation['날짜'] = "";
+          patientAndExamInformation['시간'] = "";
+          patientAndExamInformation['위내시경'] = {};
+          patientAndExamInformation['위검진_외래'] = "없음";
+          patientAndExamInformation['위수면_일반'] = "없음";
+          patientAndExamInformation['위조직'] = "0";
+          patientAndExamInformation['CLO'] = false;
+          patientAndExamInformation['위절제술'] = "0";
+          patientAndExamInformation['위응급'] = false;
+          patientAndExamInformation['PEG'] = false;
+          patientAndExamInformation['대장검진_외래'] = "없음";
+          patientAndExamInformation['대장수면_일반'] = "없음";
+          patientAndExamInformation['대장조직'] = "0";
+          patientAndExamInformation['대장절제술'] = "0";
+          patientAndExamInformation['대장응급'] = false;
+          patientAndExamInformation['대장내시경'] = {scopy:{'세척시간':"", '세척기계':""}};
+          patientAndExamInformation['sig조직'] = "0";
+          patientAndExamInformation['sig절제술'] = "0";
+          patientAndExamInformation['sig응급'] = false;
+          patientAndExamInformation['sig'] = {};
         }
 
-        if (GSFmachine.containsKey(scopy) && noPatient) {
+        final currentTime = timeToformattedFormAsyyyyMMddHHmm(DateTime.now());
+        patientAndExamInformation['날짜'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        print ('조검검색 시작');
+        if (GSFmachine.containsKey(scopy) && patientAndExamInformation['위내시경'].keys.toList().contains(scopy)) {
+          print('여기는 gsf : $patientAndExamInformation');
           patientAndExamInformation['위내시경'][scopy] = {'세척기계':machineName, '세척시간':currentTime};
-        }
-        if (CSFmachine.containsKey(scopy) && noPatient) {
+        } else if(CSFmachine.containsKey(scopy) && patientAndExamInformation['대장내시경'].keys.toList().contains(scopy)){
+          print('여기는 csf');
           patientAndExamInformation['대장내시경'][scopy] = {'세척기계':machineName, '세척시간':currentTime};
+        } else if(patientAndExamInformation['sig'].keys.toList().contains(scopy)) {
+          print('여기는 sig');
+          patientAndExamInformation['sig'][scopy] = {'세척기계':machineName, '세척시간':currentTime};
         }
 
         Map<String, String> newInfo = {'날짜-시간':currentTime, '일련번호':scopy, '환자정보':patientAndExamInformation['id']};
@@ -693,68 +634,91 @@ class _WashingRoomState extends State<WashingRoom> {
       //await prefs.setString('machineScopyTime', jsonEncode(sortedmachineScopyTime));
       await saveMachineScopyTimePtIDToFirestore(machineName, newInfo, patientAndExamInformation);
     }
-    setState(() {
-      selectedPatientNameAndScopyName = '환자';
+    await _counNotCompleteWashingRecord();
+    setState(()  {
+      if (notCompletedWashingRecordNum !=0) {
+        selectedPatientNameAndScopyName = '미세척 scope $notCompletedWashingRecordNum개 남음!';
+      } else {
+        encouragingComments.shuffle();
+        selectedPatientNameAndScopyName = encouragingComments.first;
+      }
+
       noPatient = false;
       _isPressedMachine = false;
       selectedScopyName = "기기세척";
+      endoscopySelectionForJustWashing = false;
+      endoscopySelection = false;
+      patientAndExamInformation = {};
     });
 
 
   }
 
+  bool _deletedButtonDisabled = false;
+
   void deleteItemFromFirestore(String machineName, Map<String, dynamic> scopyTimePtName) async {
     final firestore = FirebaseFirestore.instance;
 
     if (scopyTimePtName['환자이름'] == "기기세척") {
-      try {
-        String id = scopyTimePtName['환자id'];
-        QuerySnapshot querySnapshot = await firestore.collection('patients')
-            .where('id', isEqualTo: id)
-            .get();
-        if (querySnapshot.docs.isNotEmpty) {
-          for (var doc in querySnapshot.docs) {
-            await firestore.collection('patients').doc(doc.id).delete();
+      if (!_deletedButtonDisabled) {
+        _deletedButtonDisabled = true;
+        try {
+          String id = scopyTimePtName['환자id'];
+          QuerySnapshot querySnapshot = await firestore.collection('patients')
+              .where('id', isEqualTo: id)
+              .get();
+          if (querySnapshot.docs.isNotEmpty) {
+            for (var doc in querySnapshot.docs) {
+              await firestore.collection('patients').doc(doc.id).delete();
+            }
           }
+        } catch (e) {
+          print('Error deleting document: $e');
+        } finally {
+          _deletedButtonDisabled = false;
         }
-      } catch (e) {
-        print('Error deleting document: $e');
       }
     } else {
-      try {
-        String id = scopyTimePtName['환자id'];
-        QuerySnapshot querySnapshot = await firestore.collection('patients')
-            .where('id', isEqualTo: id)
-            .get();
-        if (querySnapshot.docs.isNotEmpty) {
-          for (var doc in querySnapshot.docs) {
-            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-            String scope = scopyTimePtName['일련번호'];
-            if (data['sig'].containsKey(scopyTimePtName['일련번호'])) {
-              for (var sigScope in data['sig'].keys.toList()){
-                if (sigScope == scopyTimePtName['일련번호']) {
-                  data['sig'][sigScope] = {'세척시간':"", '세척기계':""};
+      if (!_deletedButtonDisabled) {
+        _deletedButtonDisabled = true;
+        try {
+          String id = scopyTimePtName['환자id'];
+          QuerySnapshot querySnapshot = await firestore.collection('patients')
+              .where('id', isEqualTo: id)
+              .get();
+          if (querySnapshot.docs.isNotEmpty) {
+            for (var doc in querySnapshot.docs) {
+              Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+              String scope = scopyTimePtName['일련번호'];
+              if (data['sig'].containsKey(scopyTimePtName['일련번호'])) {
+                for (var sigScope in data['sig'].keys.toList()){
+                  if (sigScope == scopyTimePtName['일련번호']) {
+                    data['sig'][sigScope] = {'세척시간':"", '세척기계':""};
+                  }
+                }
+              } else if(data['위내시경'].containsKey(scopyTimePtName['일련번호'])) {
+                for (var gsfScope in data['위내시경'].keys.toList()){
+                  if (gsfScope == scopyTimePtName['일련번호']) {
+                    data['위내시경'][gsfScope] = {'세척시간':"", '세척기계':""};
+                  }
+                }
+              } else if(data['대장내시경'].containsKey(scopyTimePtName['일련번호'])) {
+                for (var gsfScope in data['대장내시경'].keys.toList()){
+                  if (gsfScope == scopyTimePtName['일련번호']) {
+                    data['대장내시경'][gsfScope] = {'세척시간':"", '세척기계':""};
+                  }
                 }
               }
-            } else if(data['위내시경'].containsKey(scopyTimePtName['일련번호'])) {
-              for (var gsfScope in data['위내시경'].keys.toList()){
-                if (gsfScope == scopyTimePtName['일련번호']) {
-                  data['위내시경'][gsfScope] = {'세척시간':"", '세척기계':""};
-                }
-              }
-            } else if(data['대장내시경'].containsKey(scopyTimePtName['일련번호'])) {
-              for (var gsfScope in data['대장내시경'].keys.toList()){
-                if (gsfScope == scopyTimePtName['일련번호']) {
-                  data['대장내시경'][gsfScope] = {'세척시간':"", '세척기계':""};
-                }
-              }
+              await firestore.collection('patients').doc(doc.id).update(data);
             }
-            await firestore.collection('patients').doc(doc.id).update(data);
           }
+          print('Document successfully deleted.');
+          _counNotCompleteWashingRecord();
+        } catch (e) {
+          print('Error deleting document: $e');
+        } finally {
+          _deletedButtonDisabled = true;
         }
-        print('Document successfully deleted.');
-      } catch (e) {
-        print('Error deleting document: $e');
       }
     }
   }
@@ -973,6 +937,7 @@ class _WashingRoomState extends State<WashingRoom> {
       setState(() {
         selectedDate = picked; // 선택된 날짜로 상태 업데이트
         totalEndoscopyListAtOtherDay = true;
+        _counNotCompleteWashingRecord();
       });
     }
   }
@@ -1062,7 +1027,7 @@ class _WashingRoomState extends State<WashingRoom> {
         endoscopyButton(
           onPressed: () => _onPressedScopy(data[i]),
           text: data[i],
-          isSelected: _isPressedScopy && endoscopySelection,
+          isSelected: _isPressedScopy && endoscopySelectionForJustWashing,
         ),
       );
 
@@ -1116,7 +1081,7 @@ class _WashingRoomState extends State<WashingRoom> {
     "대장내시경":{},
     "sig": {}, "sig조직":"0","sig절제술":"0","sig응급":false,
   };
-  String selectedPatientNameAndScopyName = "환자";
+  String selectedPatientNameAndScopyName = "검사";
 
   void showPatientInfoDialog() async {
 
@@ -1148,7 +1113,9 @@ class _WashingRoomState extends State<WashingRoom> {
           }
         }
       }
-      completePatientInfoList.add(patientInfo);
+      if (patientInfo['이름'] != '기기세척'){
+        completePatientInfoList.add(patientInfo);
+      }
     }
     print ('complete: ${completePatientInfoList.length}명, $completePatientInfoList}');
     print ('incomplete: ${incompletePatientInfoList.length}명, $incompletePatientInfoList');
@@ -1181,7 +1148,7 @@ class _WashingRoomState extends State<WashingRoom> {
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('환자 목록'),
+                Text('검사 목록'),
                 TextButton(
                   onPressed: () => _selectDateInPatientInfoDialog(context),
                   child: Today == formattedDate ? Text('Today') : Text("$formattedDate"),
@@ -1229,6 +1196,7 @@ class _WashingRoomState extends State<WashingRoom> {
                                    child: Text('위 $scope'),
                                    onPressed: () {
                                      setState(() {
+                                       endoscopySelection = true;
                                        selectedScopyName = scope;
                                        selectedPatientNameAndScopyName = patient['이름'] + " (위내시경 " + scope + ")";
                                        patientAndExamInformation = Map<String, dynamic>.from(patient);
@@ -1258,6 +1226,7 @@ class _WashingRoomState extends State<WashingRoom> {
                                    child: Text('대장 $scope'),
                                    onPressed: () {
                                      setState(() {
+                                       endoscopySelection = true;
                                        selectedScopyName = scope;
                                        selectedPatientNameAndScopyName = patient['이름'] + " (대장내시경  " + scope + ")";
                                        patientAndExamInformation = Map<String, dynamic>.from(patient);
@@ -1287,6 +1256,7 @@ class _WashingRoomState extends State<WashingRoom> {
                                    child: Text('Sig $scope'),
                                    onPressed: () {
                                      setState(() {
+                                       endoscopySelection = true;
                                        selectedScopyName = scope;
                                        selectedPatientNameAndScopyName = patient['이름'] + " (sig " + scope + ")";
                                        patientAndExamInformation = Map<String, dynamic>.from(patient);
@@ -1354,14 +1324,15 @@ class _WashingRoomState extends State<WashingRoom> {
                              children: [
                                if (scopes.isNotEmpty) ...scopes.map((scope) => ElevatedButton(
                                  child: Text('위 $scope'),
-                                 onPressed: () {
-                                   setState(() {
-                                     selectedScopyName = scope;
-                                     selectedPatientNameAndScopyName = patient['이름'] + " (위내시경 " + scope + ")";
-                                     patientAndExamInformation = Map<String, dynamic>.from(patient);
-                                     Navigator.of(context).pop();
-                                   });
-                                 },
+                                 // onPressed: () {
+                                 //   setState(() {
+                                 //     selectedScopyName = scope;
+                                 //     selectedPatientNameAndScopyName = patient['이름'] + " (위내시경 " + scope + ")";
+                                 //     patientAndExamInformation = Map<String, dynamic>.from(patient);
+                                 //     Navigator.of(context).pop();
+                                 //   });
+                                 // },
+                                 onPressed: () {},
                                  style: patient['위내시경'][scope]['세척기계'] != ""? ButtonStyle(
                                    backgroundColor: MaterialStateProperty.all(const Color(0xFFb3cde0)),
                                    shape: MaterialStateProperty.all<RoundedRectangleBorder>(
@@ -1383,14 +1354,15 @@ class _WashingRoomState extends State<WashingRoom> {
                                if (colonScopes.isNotEmpty) SizedBox(width: 10),
                                if (colonScopes.isNotEmpty) ...colonScopes.map((scope) => ElevatedButton(
                                  child: Text('대장 $scope'),
-                                 onPressed: () {
-                                   setState(() {
-                                     selectedScopyName = scope;
-                                     selectedPatientNameAndScopyName = patient['이름'] + " (대장내시경  " + scope + ")";
-                                     patientAndExamInformation = Map<String, dynamic>.from(patient);
-                                     Navigator.of(context).pop();
-                                   });
-                                 },
+                                 // onPressed: () {
+                                 //   setState(() {
+                                 //     selectedScopyName = scope;
+                                 //     selectedPatientNameAndScopyName = patient['이름'] + " (대장내시경  " + scope + ")";
+                                 //     patientAndExamInformation = Map<String, dynamic>.from(patient);
+                                 //     Navigator.of(context).pop();
+                                 //   });
+                                 // },
+                                 onPressed: () {},
                                  style: patient['대장내시경'][scope]['세척기계'] != ""? ButtonStyle(
                                    backgroundColor: MaterialStateProperty.all(const Color(0xFFb3cde0)),
                                    shape: MaterialStateProperty.all<RoundedRectangleBorder>(
@@ -1412,14 +1384,15 @@ class _WashingRoomState extends State<WashingRoom> {
                                if (sigScopes.isNotEmpty) SizedBox(width: 10),
                                if (sigScopes.isNotEmpty) ...sigScopes.map((scope) => ElevatedButton(
                                  child: Text('Sig $scope'),
-                                 onPressed: () {
-                                   setState(() {
-                                     selectedScopyName = scope;
-                                     selectedPatientNameAndScopyName = patient['이름'] + " (sig " + scope + ")";
-                                     patientAndExamInformation = Map<String, dynamic>.from(patient);
-                                     Navigator.of(context).pop();
-                                   });
-                                 },
+                                 // onPressed: () {
+                                 //   setState(() {
+                                 //     selectedScopyName = scope;
+                                 //     selectedPatientNameAndScopyName = patient['이름'] + " (sig " + scope + ")";
+                                 //     patientAndExamInformation = Map<String, dynamic>.from(patient);
+                                 //     Navigator.of(context).pop();
+                                 //   });
+                                 // },
+                                 onPressed: () {},
                                  style: patient['sig'][scope]['세척기계'] != ""? ButtonStyle(
                                    backgroundColor: MaterialStateProperty.all(const Color(0xFFb3cde0)),
                                    shape: MaterialStateProperty.all<RoundedRectangleBorder>(
@@ -1488,28 +1461,13 @@ class _WashingRoomState extends State<WashingRoom> {
     final String formattedDateForAppBar = DateFormatForAppBarDate.format(selectedDate);
     final String formattedToday = DateFormatForAppBarDate.format(DateTime.now());
     final String appBarDate = (formattedToday == formattedDateForAppBar) ? 'Today' : formattedDateForAppBar;
+
+
     // 세척실 탭의 내용
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
           children: <Widget>[
-            // SingleChildScrollView(
-            //   scrollDirection: Axis.horizontal, // 가로 방향으로 스크롤 가능하게 설정
-            //   child: Row(
-            //     children: [
-            //       machineButton(index: 1, machineName: '1호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-            //       SizedBox(width: 5,),
-            //       machineButton(index: 2, machineName: '2호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-            //       SizedBox(width: 5,),
-            //       machineButton(index: 3, machineName: '3호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-            //       SizedBox(width: 5,),
-            //       machineButton(index: 4, machineName: '4호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine),
-            //       SizedBox(width: 5,),
-            //       machineButton(index: 5, machineName: '5호기', isPressedMachine: _isPressedMachine, selectedIndexMachine: _selectedIndexMachine, onPressedMachine: _onPressedMachine)
-            //     ],
-            //   ),
-            // ),
-            // SizedBox(height: 10,),
             Row(
               children: [
                 SizedBox(width: 5,),
@@ -1518,13 +1476,14 @@ class _WashingRoomState extends State<WashingRoom> {
                     child: ElevatedButton(
                       onPressed: showPatientInfoDialog,
                       child: Text(
-                        selectedPatientNameAndScopyName,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16
-                        ),
-                      ),
+                            selectedPatientNameAndScopyName,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16
+                            ),
+                          ),
+
                       style: ButtonStyle(
                         backgroundColor: MaterialStateProperty.all(const Color(0xFF6497b1)),
                         shape: MaterialStateProperty.all<RoundedRectangleBorder>(
@@ -1561,7 +1520,17 @@ class _WashingRoomState extends State<WashingRoom> {
                                     onPressed: () {
                                       Navigator.of(context).pop();
                                       },
-                                    child: Text('닫기'))
+                                    child: Text('확인')
+                                ),
+                                TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                      setState(() {
+                                        selectedScopyName = "기기세척";
+                                        endoscopySelectionForJustWashing = false;
+                                      });
+                                    },
+                                    child: Text('취소'))
                               ],
                             );
                           }
@@ -1570,15 +1539,15 @@ class _WashingRoomState extends State<WashingRoom> {
                     onLongPress: () {
                       setState(() {
                         selectedScopyName = "기기세척";
-                        endoscopySelection = false;
+                        endoscopySelectionForJustWashing = false;
                       });
                     },
                     child: Text(
-                      endoscopySelection ? selectedScopyName : '기기세척',
+                      endoscopySelectionForJustWashing ? selectedScopyName : '기기\n세척',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 10
+                        fontSize: endoscopySelectionForJustWashing ? 20 : 15
                       ),
                     ),
                     style: ButtonStyle(
@@ -1607,19 +1576,19 @@ class _WashingRoomState extends State<WashingRoom> {
                       });
                     },
                     child: Text(
-                      DateFormat('yy/MM/dd').format(selectedDate) == DateFormat('yy/MM/dd').format(DateTime.now())  ? '오늘' :
-                      DateFormat('yy/MM/dd').format(selectedDate) ,
+                      DateFormat('MM/dd').format(selectedDate) == DateFormat('MM/dd').format(DateTime.now())  ? '오늘' :
+                      DateFormat('MM/dd').format(selectedDate) ,
                       style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 15
+                          fontSize: DateFormat('MM/dd').format(selectedDate) == DateFormat('MM/dd').format(DateTime.now()) ? 20:13
                       ),
                     ),
                     style: ButtonStyle(
                       backgroundColor: MaterialStateProperty.all(const Color(0x807863b0)),
                       shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                         RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
+                          borderRadius: BorderRadius.circular(15),
                         ),
                       ),
                       fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
@@ -1630,7 +1599,7 @@ class _WashingRoomState extends State<WashingRoom> {
               ],
             ),
             SizedBox(height: 10,),
-            _isPressedMachine && (selectedPatientNameAndScopyName != "환자" || endoscopySelection)? Column(
+            _isPressedMachine && (endoscopySelection || endoscopySelectionForJustWashing)? Column(
               children: [
                 Row(
                   children: <Widget>[
@@ -2001,6 +1970,8 @@ class _EditDialogState extends State<EditDialog> {
   Map<String, String> CSFmachine = {'039':'7C692K039', '166':'6C692K166', '098':'5C692K098', '219':'1C664K219', '379':'1C665K379', '515':'1C666K515',};
   List<String> scopyShortName= ['039', '073', '098', '153','166','180','219', '256', '257', '259', '333', '379', '390', '405','407', '515', '694'];
 
+  bool _isEditButtonDisabled = false;
+
 
 
   @override
@@ -2125,71 +2096,77 @@ class _EditDialogState extends State<EditDialog> {
             String patientId = widget.scopyTimePtMap['환자id'];
             int index = 0;
             FirebaseFirestore firestore = FirebaseFirestore.instance;
-            try {
-              QuerySnapshot query = await firestore.collection('patients')
-                  .where('id', isEqualTo: patientId)
-                  .get();
+            if (!_isEditButtonDisabled) {
+              _isEditButtonDisabled = true;
+              try {
+                QuerySnapshot query = await firestore.collection('patients')
+                    .where('id', isEqualTo: patientId)
+                    .get();
 
-              if (query.docs.isNotEmpty) {
-                for (var doc in query.docs) {
-                  Map<String, dynamic> patientAndExaminationInformation  = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
-                  String scopyName = widget.scopyTimePtMap['일련번호'];
-                  if (CSFmachine.containsKey(scopyName) && !patientAndExaminationInformation['sig'].containsKey(scopyName)) {
-                    String washingTime = patientAndExaminationInformation['대장내시경'][scopyName]['세척시간'];
-                    String machineName = patientAndExaminationInformation['대장내시경'][scopyName]['세척기계'];
-                    if (scopyName != newName) {
-                      patientAndExaminationInformation['대장내시경'][newName] = {'세척기계':machineName, '세척시간':washingTime};
-                      patientAndExaminationInformation['대장내시경'].remove(scopyName);
-                      if (washingTime != formattedNewTime) {
-                        patientAndExaminationInformation['대장내시경'][newName] = {'세척기계':machineName, "세척시간":formattedNewTime};
+                if (query.docs.isNotEmpty) {
+                  for (var doc in query.docs) {
+                    Map<String, dynamic> patientAndExaminationInformation  = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
+                    String scopyName = widget.scopyTimePtMap['일련번호'];
+                    if (CSFmachine.containsKey(scopyName) && !patientAndExaminationInformation['sig'].containsKey(scopyName)) {
+                      String washingTime = patientAndExaminationInformation['대장내시경'][scopyName]['세척시간'];
+                      String machineName = patientAndExaminationInformation['대장내시경'][scopyName]['세척기계'];
+                      if (scopyName != newName) {
+                        patientAndExaminationInformation['대장내시경'][newName] = {'세척기계':machineName, '세척시간':washingTime};
+                        patientAndExaminationInformation['대장내시경'].remove(scopyName);
+                        if (washingTime != formattedNewTime) {
+                          patientAndExaminationInformation['대장내시경'][newName] = {'세척기계':machineName, "세척시간":formattedNewTime};
+                        }
+                      } else if (scopyName == newName) {
+                        if (washingTime != formattedNewTime) {
+                          patientAndExaminationInformation['대장내시경'][scopyName] = {'세척기계':machineName, "세척시간":formattedNewTime};
+                        }
                       }
-                    } else if (scopyName == newName) {
-                      if (washingTime != formattedNewTime) {
-                        patientAndExaminationInformation['대장내시경'][scopyName] = {'세척기계':machineName, "세척시간":formattedNewTime};
+                    } else if (GSFmachine.containsKey(scopyName) && !patientAndExaminationInformation['sig'].containsKey(scopyName)) {
+                      String washingTime = patientAndExaminationInformation['위내시경'][scopyName]['세척시간'];
+                      String machineName = patientAndExaminationInformation['위내시경'][scopyName]['세척기계'];
+                      if (scopyName != newName) {
+                        patientAndExaminationInformation['위내시경'][newName] = {'세척기계':machineName, '세척시간':washingTime};
+                        patientAndExaminationInformation['위내시경'].remove(scopyName);
+                        if (washingTime != formattedNewTime) {
+                          patientAndExaminationInformation['위내시경'][newName] = {'세척기계':machineName, "세척시간":formattedNewTime};
+                        }
+                      } else if (scopyName == newName) {
+                        if (washingTime != formattedNewTime) {
+                          patientAndExaminationInformation['위내시경'][scopyName] = {'세척기계':machineName, "세척시간":formattedNewTime};
+                        }
                       }
                     }
-                  } else if (GSFmachine.containsKey(scopyName) && !patientAndExaminationInformation['sig'].containsKey(scopyName)) {
-                    String washingTime = patientAndExaminationInformation['위내시경'][scopyName]['세척시간'];
-                    String machineName = patientAndExaminationInformation['위내시경'][scopyName]['세척기계'];
-                    if (scopyName != newName) {
-                      patientAndExaminationInformation['위내시경'][newName] = {'세척기계':machineName, '세척시간':washingTime};
-                      patientAndExaminationInformation['위내시경'].remove(scopyName);
-                      if (washingTime != formattedNewTime) {
-                        patientAndExaminationInformation['위내시경'][newName] = {'세척기계':machineName, "세척시간":formattedNewTime};
-                      }
-                    } else if (scopyName == newName) {
-                      if (washingTime != formattedNewTime) {
-                        patientAndExaminationInformation['위내시경'][scopyName] = {'세척기계':machineName, "세척시간":formattedNewTime};
+                    if (patientAndExaminationInformation['sig'].isNotEmpty && patientAndExaminationInformation['sig'].containsKey(scopyName)) {
+                      print ('sig 수정');
+                      String washingTime = patientAndExaminationInformation['sig'][scopyName]['세척시간'];
+                      String machineName = patientAndExaminationInformation['sig'][scopyName]['세척기계'];
+                      if (scopyName != newName) {
+                        patientAndExaminationInformation['sig'][newName] = {'세척기계':machineName, '세척시간':washingTime};
+                        patientAndExaminationInformation['sig'].remove(scopyName);
+                        if (washingTime != formattedNewTime) {
+                          patientAndExaminationInformation['sig'][newName] = {'세척기계':machineName, "세척시간":formattedNewTime};
+                        }
+                      } else if (scopyName == newName) {
+                        if (washingTime != formattedNewTime) {
+                          patientAndExaminationInformation['sig'][scopyName] = {'세척기계':machineName, "세척시간":formattedNewTime};
+                        }
                       }
                     }
+                    await firestore.collection('patients').doc(doc.id).update(
+                        patientAndExaminationInformation
+                    );
+                    print('Document successfully updated.');
                   }
-                  if (patientAndExaminationInformation['sig'].isNotEmpty && patientAndExaminationInformation['sig'].containsKey(scopyName)) {
-                    print ('sig 수정');
-                    String washingTime = patientAndExaminationInformation['sig'][scopyName]['세척시간'];
-                    String machineName = patientAndExaminationInformation['sig'][scopyName]['세척기계'];
-                    if (scopyName != newName) {
-                      patientAndExaminationInformation['sig'][newName] = {'세척기계':machineName, '세척시간':washingTime};
-                      patientAndExaminationInformation['sig'].remove(scopyName);
-                      if (washingTime != formattedNewTime) {
-                        patientAndExaminationInformation['sig'][newName] = {'세척기계':machineName, "세척시간":formattedNewTime};
-                      }
-                    } else if (scopyName == newName) {
-                      if (washingTime != formattedNewTime) {
-                        patientAndExaminationInformation['sig'][scopyName] = {'세척기계':machineName, "세척시간":formattedNewTime};
-                      }
-                    }
-                  }
-                  await firestore.collection('patients').doc(doc.id).update(
-                      patientAndExaminationInformation
-                  );
-                  print('Document successfully updated.');
+                } else {
+                  print('No document found for the given patient ID.');
                 }
-              } else {
-                print('No document found for the given patient ID.');
+              } catch (e) {
+                print('Error updating document: $e');
+              } finally {
+                _isEditButtonDisabled = false;
               }
-            } catch (e) {
-              print('Error updating document: $e');
             }
+
 
             Navigator.of(context).pop({"일련번호":newName, "날짜-시간":formattedNewTime, '환자이름':PtName, '환자id':patientId});
             // showDialog(

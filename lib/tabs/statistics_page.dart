@@ -1206,29 +1206,29 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
 
             Row(
               children: [
-                SizedBox(width: 10,),
-                Expanded(
-                  child: ElevatedButton(
-                      onPressed: () => showEmailDialog(context, '내시경검사와세척기본데이터'),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min, // Row의 크기를 자식들의 크기에 맞게 조절
-                        children: <Widget>[
-                          Text('기본자료'), // 텍스트 위젯
-                          SizedBox(width: 8), // 텍스트와 아이콘 사이의 공간
-                          Icon(Icons.email), // 메일 아이콘
-                        ],
-                      ),
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(const Color(0xFFb3cde0)),
-                      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
-                        ),
-                      ),
-                      fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
-                    ),
-                  ),
-                ),
+                //SizedBox(width: 10,),
+                // Expanded(
+                //   child: ElevatedButton(
+                //       onPressed: () => showEmailDialog(context, '내시경검사와세척기본데이터'),
+                //       child: Row(
+                //         mainAxisSize: MainAxisSize.min, // Row의 크기를 자식들의 크기에 맞게 조절
+                //         children: <Widget>[
+                //           Text('기본자료'), // 텍스트 위젯
+                //           SizedBox(width: 8), // 텍스트와 아이콘 사이의 공간
+                //           Icon(Icons.email), // 메일 아이콘
+                //         ],
+                //       ),
+                //     style: ButtonStyle(
+                //       backgroundColor: MaterialStateProperty.all(const Color(0xFFb3cde0)),
+                //       shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                //         RoundedRectangleBorder(
+                //           borderRadius: BorderRadius.circular(15), // 모서리를 둥글지 않게 설정
+                //         ),
+                //       ),
+                //       fixedSize: MaterialStateProperty.all(Size.fromHeight(50)),
+                //     ),
+                //   ),
+                // ),
                 SizedBox(width: 10,),
                 Expanded(
                     child: ElevatedButton(
@@ -1236,7 +1236,13 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                       child: Row(
                         mainAxisSize: MainAxisSize.min, // Row의 크기를 자식들의 크기에 맞게 조절
                         children: <Widget>[
-                          Text('세척&소독일지'), // 텍스트 위젯
+                          Text(
+                            '세척&소독일지',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold
+                            ),
+                          ), // 텍스트 위젯
                           SizedBox(width: 8), // 텍스트와 아이콘 사이의 공간
                           Icon(Icons.email), // 메일 아이콘
                         ],
@@ -1255,9 +1261,9 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                 SizedBox(width: 10,),
               ],
             ),
-            SizedBox(height: 10,),
-            Divider(color: Colors.indigo,),
-            SizedBox(height: 10,),
+            SizedBox(height: 5,),
+            //Divider(color: Colors.indigo,),
+            SizedBox(height: 5,),
             Row(
               children: [
                 SizedBox(width: 5,),
@@ -1376,7 +1382,7 @@ class _StatisticsPageState extends State<StatisticsPage> with AutomaticKeepAlive
                 ],
               )
              : SizedBox(),
-            SizedBox(height: 5,),
+            //SizedBox(height: 5,),
             //Divider(color: Colors.indigo,),
             Row(
               children: [

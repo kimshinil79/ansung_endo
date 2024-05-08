@@ -28,6 +28,12 @@ class _sortDetailState extends State<sortDetail> {
   List<String> docs = ['이병수', '권순범', '김신일', '한융희', '이기섭'];
   String selectedRoom = "";
   List<String> Rooms = ['1', '2', '3'];
+  Map<String, String> gsfRelatedItems = {'일반':"위-일반", "외래":"위-외래", "수면":"위-수면","검진":"위-검진", "Bx":"위-Bx", "Polypectomy":"위-polypectomy",
+                "CLO":"CLO", "PEG":"PEG", "응급":"위-응급", "위내시경":"위내시경"};
+  Map<String, String> csfRelatedItems = {'일반':"대장-일반", "외래":"대장-외래", "수면":"대장-수면","검진":"대장-검진", "Bx":"대장-Bx", "Polypectomy":"대장-polypectomy",
+    "응급":"대장-응급", "대장내시경":"대장내시경"};
+  Map<String, String> sigRelatedItems = {"Bx":"sig-Bx", "Polypectomy":"sig-polypectomy","응급":"Sig-응급", "S상결장경":"S상결장경"};
+
 
   bool gsf =false;
   bool gsfNonGumjin = false;
@@ -131,7 +137,7 @@ class _sortDetailState extends State<sortDetail> {
     );
   }
 
-  Widget checkBoxWidget(String title, bool value, Function(bool?) onChanged) {
+  Widget checkBoxWidget(String title, String source, bool value, Function(bool?) onChanged) {
 
     return Row(
       children: [
@@ -142,15 +148,72 @@ class _sortDetailState extends State<sortDetail> {
               setState(() {
                 value = newValue!;
                 if (value) {
-                  print ('add 부위에서:$value');
-                  if (!queryConditions.contains(title) && value) {
-                    queryConditions.add(title);
+                  if (source == "gsf") {
+                    if (!queryConditions.contains(gsfRelatedItems[title]) && value) {
+                      queryConditions.add(gsfRelatedItems[title]!);
+                      queryConditions.remove('위내시경');
+                    }
+                  }
+                  if (source == "csf") {
+                    if (!queryConditions.contains(csfRelatedItems[title]) && value) {
+                      queryConditions.add(csfRelatedItems[title]!);
+                      queryConditions.remove('대장내시경');
+                    }
+                  }
+                  if (source =="sig") {
+                    if (!queryConditions.contains(sigRelatedItems[title]) && value) {
+                      queryConditions.add(sigRelatedItems[title]!);
+                      queryConditions.remove('S상결장경');
+                    }
                   }
                 } else {
-                  print ('removd 부위에서:$value');
-                  queryConditions.remove(title);
+                  if (source == "gsf") {
+                    queryConditions.remove(gsfRelatedItems[title]);
+                    if (title == "위내시경") {
+                      queryConditions.removeWhere((element) => gsfRelatedItems.containsValue(element));
+                      gsfNonGumjin = false;
+                      gsfGumjin = false;
+                      gsfSleep = false;
+                      gsfNonSleep = false;
+                      gsfBx = false;
+                      gsfPolypectomy = false;
+                      CLO = false;
+                      PEG = false;
+                      gsfEmergency = false;
+                    }
+                  }
+                  if (source == "csf") {
+                    queryConditions.remove(csfRelatedItems[title]);
+                    if (title == "대장내시경") {
+                      queryConditions.removeWhere((element) => csfRelatedItems.containsValue(element));
+                      csf = false;
+                      csfNonGumjin = false;
+                      csfGumjin = false;
+                      csfSleep = false;
+                      csfNonSleep = false;
+                      csfBx = false;
+                      csfPolypectomy = false;
+                      csfEmergency = false;
+                    }
+                  }
+                  if (source == "sig") {
+                    queryConditions.remove(sigRelatedItems[title]);
+                    if (title == "S상결장경") {
+                      queryConditions.removeWhere((element) => sigRelatedItems.containsValue(element));
+                      sigBx = false;
+                      sigPolypectomy = false;
+                      sigEmergency = false;
+                    }
+                  }
                 }
                 onChanged(value);
+                List<String> tempQueryConditions = [];
+                for (var item in [...gsfRelatedItems.values, ...csfRelatedItems.values, ...sigRelatedItems.values]) {
+                  if (queryConditions.contains(item)) {
+                    tempQueryConditions.add(item);
+                  }
+                }
+                queryConditions = tempQueryConditions;
                 print ('queryConditions: $queryConditions');
               });
             }
@@ -172,11 +235,9 @@ class _sortDetailState extends State<sortDetail> {
     }
     if (selectedDoc.isNotEmpty) {
       finalList = finalList.where((data)=> data['의사']==selectedDoc).toList();
-      print('의사선택1');
     }
     if (selectedRoom.isNotEmpty) {
       finalList = finalList.where((data)=> data['Room']==selectedRoom).toList();
-      print('방선택1');
     }
     if (gsf) {
       finalList = finalList.where((data)=> data['위내시경'].length !=0).toList();
@@ -228,6 +289,7 @@ class _sortDetailState extends State<sortDetail> {
         finalList = finalList.where((data)=> data['PEG'] == true).toList();
       }
     }
+
     if (csf) {
       finalList = finalList.where((data)=> data['대장내시경'].length !=0).toList();
       List<Map<String, dynamic>> tempCSFList = [];
@@ -413,12 +475,17 @@ class _sortDetailState extends State<sortDetail> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '${doc['이름']}(${doc['환자번호']}), ${doc['성별']}/${doc['나이']}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                            Center(
+                              child: Text(
+                                '${doc['이름']}(${doc['환자번호']}), ${doc['성별']}/${doc['나이']}, ${doc['날짜'].substring(5)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueGrey,
+                                ),
+
                               ),
                             ),
+                            SizedBox(height: 5,),
                             if(gsfSummary.isNotEmpty) Text(
                                 "> $gsfSummary"
                             ),
@@ -428,6 +495,18 @@ class _sortDetailState extends State<sortDetail> {
                             if(sigSummary.isNotEmpty) Text(
                                 "> $sigSummary"
                             ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text(
+                                    'done by ${doc['의사']}',
+                                    style: TextStyle(
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.grey
+                                    ),
+                                ),
+                              ],
+                            )
                           ],
                         ),
                       ),
@@ -470,7 +549,7 @@ class _sortDetailState extends State<sortDetail> {
                 ],
               ),
 
-              checkBoxWidget('위내시경', gsf, (bool? value) => setState(() => gsf = value!)),
+              checkBoxWidget('위내시경', "gsf", gsf, (bool? value) => setState(() => gsf = value!)),
               gsf? Container(
                 padding: EdgeInsets.all(5.0),
                 decoration: BoxDecoration(
@@ -486,31 +565,31 @@ class _sortDetailState extends State<sortDetail> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        checkBoxWidget('외래', gsfNonGumjin, (bool? value) => setState(() => gsfNonGumjin = value!)),
-                        checkBoxWidget('검진', gsfGumjin, (bool? value) => setState(() => gsfGumjin = value!)),
-                        checkBoxWidget('수면', gsfSleep, (bool? value) => setState(() => gsfSleep = value!)),
-                        checkBoxWidget('일반', gsfNonSleep, (bool? value) => setState(() => gsfNonSleep = value!)),
+                        checkBoxWidget('외래', "gsf", gsfNonGumjin, (bool? value) => setState(() => gsfNonGumjin = value!)),
+                        checkBoxWidget('검진', "gsf", gsfGumjin, (bool? value) => setState(() => gsfGumjin = value!)),
+                        checkBoxWidget('수면', "gsf", gsfSleep, (bool? value) => setState(() => gsfSleep = value!)),
+                        checkBoxWidget('일반', "gsf", gsfNonSleep, (bool? value) => setState(() => gsfNonSleep = value!)),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        checkBoxWidget('Bx', gsfBx, (bool? value) => setState(() => gsfBx = value!)),
-                        checkBoxWidget('CLO', CLO, (bool? value) => setState(() => CLO = value!)),
-                        checkBoxWidget('Polypectomy', gsfPolypectomy, (bool? value) => setState(() => gsfPolypectomy = value!)),
+                        checkBoxWidget('Bx', "gsf", gsfBx, (bool? value) => setState(() => gsfBx = value!)),
+                        checkBoxWidget('CLO', "gsf", CLO, (bool? value) => setState(() => CLO = value!)),
+                        checkBoxWidget('Polypectomy', "gsf", gsfPolypectomy, (bool? value) => setState(() => gsfPolypectomy = value!)),
                       ],
                     ),
                     Row(
                       children: [
-                        checkBoxWidget('PEG', PEG, (bool? value) => setState(() => PEG = value!)),
-                        checkBoxWidget('응급', gsfEmergency, (bool? value) => setState(() => gsfEmergency = value!)),
+                        checkBoxWidget('PEG', "gsf", PEG, (bool? value) => setState(() => PEG = value!)),
+                        checkBoxWidget('응급', "gsf", gsfEmergency, (bool? value) => setState(() => gsfEmergency = value!)),
                       ],
                     )
                   ],
                 ),
               ):SizedBox(),
               SizedBox(height: 10,),
-              checkBoxWidget('대장내시경', csf, (bool? value) => setState(() => csf = value!)),
+              checkBoxWidget('대장내시경', "csf", csf, (bool? value) => setState(() => csf = value!)),
               csf? Container(
                 padding: EdgeInsets.all(5.0),
                 decoration: BoxDecoration(
@@ -526,25 +605,25 @@ class _sortDetailState extends State<sortDetail> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        checkBoxWidget('외래', csfNonGumjin, (bool? value) => setState(() => csfNonGumjin = value!)),
-                        checkBoxWidget('검진', csfGumjin, (bool? value) => setState(() => csfGumjin = value!)),
-                        checkBoxWidget('수면', csfSleep, (bool? value) => setState(() => csfSleep = value!)),
-                        checkBoxWidget('일반', csfNonSleep, (bool? value) => setState(() => csfNonSleep = value!)),
+                        checkBoxWidget('외래', "csf", csfNonGumjin, (bool? value) => setState(() => csfNonGumjin = value!)),
+                        checkBoxWidget('검진', "csf", csfGumjin, (bool? value) => setState(() => csfGumjin = value!)),
+                        checkBoxWidget('수면', "csf", csfSleep, (bool? value) => setState(() => csfSleep = value!)),
+                        checkBoxWidget('일반', "csf", csfNonSleep, (bool? value) => setState(() => csfNonSleep = value!)),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        checkBoxWidget('Bx', csfBx, (bool? value) => setState(() => csfBx = value!)),
-                        checkBoxWidget('Polypectomy', csfPolypectomy, (bool? value) => setState(() => csfPolypectomy = value!)),
-                        checkBoxWidget('응급', csfEmergency, (bool? value) => setState(() => csfEmergency = value!)),
+                        checkBoxWidget('Bx', "csf", csfBx, (bool? value) => setState(() => csfBx = value!)),
+                        checkBoxWidget('Polypectomy', "csf", csfPolypectomy, (bool? value) => setState(() => csfPolypectomy = value!)),
+                        checkBoxWidget('응급', "csf", csfEmergency, (bool? value) => setState(() => csfEmergency = value!)),
                       ],
                     ),
                   ],
                 ),
               ):SizedBox(),
               SizedBox(height: 10,),
-              checkBoxWidget('S상결장경', sig, (bool? value) => setState(() => sig = value!)),
+              checkBoxWidget('S상결장경', "sig", sig, (bool? value) => setState(() => sig = value!)),
               sig? Container(
                 padding: EdgeInsets.all(5.0),
                 decoration: BoxDecoration(
@@ -560,9 +639,9 @@ class _sortDetailState extends State<sortDetail> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        checkBoxWidget('Bx', sigBx, (bool? value) => setState(() => sigBx = value!)),
-                        checkBoxWidget('Polypectomy', sigPolypectomy, (bool? value) => setState(() => sigPolypectomy = value!)),
-                        checkBoxWidget('응급', sigEmergency, (bool? value) => setState(() => sigEmergency = value!)),
+                        checkBoxWidget('Bx', "sig", sigBx, (bool? value) => setState(() => sigBx = value!)),
+                        checkBoxWidget('Polypectomy', "sig", sigPolypectomy, (bool? value) => setState(() => sigPolypectomy = value!)),
+                        checkBoxWidget('응급', "sig", sigEmergency, (bool? value) => setState(() => sigEmergency = value!)),
                       ],
                     ),
                   ],

@@ -60,16 +60,16 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           children: [
             Expanded(
               child: Text(
-                  '안성 성모 내시경센터 v1.6',
+                  '안성 성모 내시경센터 v1.7',
                   style: TextStyle(
                     fontSize: 27,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue[900],
+                    color: Colors.lightBlue[900],
                     shadows: [
                       Shadow(
                         offset: Offset(2.0, 2.0),
                         blurRadius: 2.0,
-                        color: const Color(0xFF00A88B).withOpacity(0.5),
+                        color: Colors.lightBlue.shade200
                       ),
                       // 필요하다면 더 많은 Shadow 객체를 리스트에 추가할 수 있습니다.
                     ],
