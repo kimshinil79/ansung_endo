@@ -56,7 +56,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
   String? selectedDoctor;
   String appBarDate = "";
   int totalExamNum = 0;
-  bool? newData = true;
+  bool newData = true;
   bool? editing = false;
   bool storeButtonDisabled = true;
 
@@ -72,11 +72,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
     super.initState();
 
     widget.tabController!.addListener(() {
-      // if (!widget.tabController!.indexIsChanging) {
-      //   if (widget.tabController!.index == 0) {
-      //     print ('tab 전환 성공!!');
-      //   }
-      // }
+
       final patientModel = Provider.of<PatientModel>(context, listen: false);
       if (patientModel != null) {
         setState(() {
@@ -90,6 +86,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
           controllders['나이']?.text = patientAndExamInformation['나이'] ?? '';
           controllders['생일']?.text = patientAndExamInformation['생일'] ?? '';
           appBarDate = patientAndExamInformation['날짜'] ?? 'Today';
+          print('ccc:$appBarDate');
           controllders['날짜']?.text = patientAndExamInformation['날짜'] ?? '';
           controllders['Room']?.text = patientAndExamInformation['Room'] ?? '';
           controllders['의사']?.text = patientAndExamInformation['의사'] ?? '';
@@ -956,16 +953,13 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
 
   Widget _buildForm(Map<String, dynamic> fullPatientInformation) {
 
-    // if (patientAndExamInformation != null ) {
-    //   print ('haha:$patientAndExamInformation');
-    // }
-
     final DateFormat DateFormatForAppBarDate = DateFormat('yyyy-MM-dd');
 
     final String formattedDateForAppBar = DateFormatForAppBarDate.format(selectedDate);
-    appBarDate = formattedDateForAppBar;
     final String formattedToday = DateFormatForAppBarDate.format(DateTime.now());
-    appBarDate = (formattedToday == formattedDateForAppBar) ? 'Today' : formattedDateForAppBar;
+    if (newData) {
+      appBarDate = (formattedToday == formattedDateForAppBar) ? 'Today' : formattedDateForAppBar;
+    }
 
 
     return Column(
