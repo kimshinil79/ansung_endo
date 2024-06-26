@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:ansung_endo/tabs/washing_room.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:path_provider/path_provider.dart';
 
 class SettingsPage extends StatefulWidget {
   @override
@@ -83,69 +86,83 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  _savePatientsData() async {
+    try {
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance.collection('patients').get();
+      List<Map<String, dynamic>> patients = querySnapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+      String jsonPatients = jsonEncode(patients);
 
+      Directory directory = await getApplicationDocumentsDirectory();
+      File file = File('${directory.path}/patients.json');
+      await file.writeAsString(jsonPatients);
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Patients data saved as JSON.')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save patients data.')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        body: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               ElevatedButton(
-                  onPressed: () => _showEditDialog('washer', '소독실무자 수정', _washerController),
-                  child: Text(
-                      '소독실무자: $washer',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                onPressed: () => _showEditDialog('washer', '소독실무자 수정', _washerController),
+                child: Text(
+                  '소독실무자: $washer',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
-                  style: ButtonStyle(
-                    shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
-                      ),
+                ),
+                style: ButtonStyle(
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
                     ),
                   ),
+                ),
               ),
               ElevatedButton(
-                  onPressed:() =>  _showEditDialog('emailAddress', "Email 수정", _emailAdressController),
-                  child: Text(
-                    'Email: $emailAddress',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                onPressed:() =>  _showEditDialog('emailAddress', "Email 수정", _emailAdressController),
+                child: Text(
+                  'Email: $emailAddress',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                style: ButtonStyle(
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
                     ),
                   ),
-                  style: ButtonStyle(
-                    shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
-                      ),
-                    ),
-                  ),
+                ),
               ),
-            // ElevatedButton(
-            //     onPressed: () async{
-            //       FirebaseFirestore firestore = FirebaseFirestore.instance;
-            //       DocumentReference docRef = firestore.collection('scopes').doc('CSF');
-            //       try {
-            //         // 'GSF' 문서의 'GSF' 필드를 GSFmachine Map으로 업데이트합니다.
-            //         await docRef.update({
-            //           'CSF': CSFmachine, // 전체 Map을 'GSF' 필드에 저장
-            //         });
-            //
-            //         print("GSF Machine data updated successfully.");
-            //       } catch(e) {
-            //         print (e);
-            //       }
-            //     },
-            //     child: Text('내시경 종류 추가/삭제'),
-            // )
-          ],
-        ),
-      )
+              ElevatedButton(
+                onPressed: _savePatientsData,
+                child: Text(
+                  '환자 데이터 저장',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                style: ButtonStyle(
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero, // 모서리를 둥글지 않게 설정
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        )
     );
   }
 }
