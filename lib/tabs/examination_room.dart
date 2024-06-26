@@ -979,14 +979,17 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
         Row(
           children: [
             Expanded(
+                flex: 5,
                 child: _buildRadioSelection('성별', ['M', 'F'])
             ),
             SizedBox(width: 10,),
             Expanded(
+              flex: 2,
                 child: _textFormInExamRoom('나이'),
             ),
             SizedBox(width: 10,),
             Expanded(
+              flex: 5,
               child: _textFormInExamRoom('생일'),
             )
           ],
@@ -995,6 +998,7 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
         Row(
           children: [
             Expanded(
+              flex: 5,
               child:ElevatedButton(
                 onPressed:() => _selectDate(context),
                 child: Text(
@@ -1021,10 +1025,12 @@ class _ExaminationRoomState  extends State<ExaminationRoom> with AutomaticKeepAl
             ),
             SizedBox(width: 10,),
             Expanded(
+                flex: 3,
                 child: _dropDownInExamRoom('Room', rooms),
             ),
             SizedBox(width: 10,),
             Expanded(
+              flex: 5,
               child: _dropDownInExamRoom('의사', docs),
             )
           ],
